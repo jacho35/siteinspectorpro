@@ -1,0 +1,17 @@
+{
+  "name": "Site Inspector Pro",
+  "short_name": "Inspector",
+  "description": "Site inspection and snag tracking for construction projects",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0f0f1a",
+  "theme_color": "#1a1a2e",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a1a2e'/><text x='50' y='68' text-anchor='middle' font-size='50' fill='%23e94560'>S</text></svg>",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

@@ -1,0 +1,1537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#1a1a2e" id="meta-theme-color">
+<title>Site Inspector Pro</title>
+<link rel="manifest" href="manifest.json">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pouchdb/9.0.0/pouchdb.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root, [data-theme="dark"] {
+  --bg-primary: #0f0f1a; --bg-secondary: #1a1a2e; --bg-card: #16213e;
+  --bg-elevated: #1f2b47; --accent: #e94560; --accent-hover: #ff6b81;
+  --accent-glow: rgba(233, 69, 96, 0.3); --text-primary: #eaeaea;
+  --text-secondary: #8892a4; --text-muted: #5a6377;
+  --border: rgba(255,255,255,0.06); --success: #2ecc71;
+  --warning: #f39c12; --info: #3498db; --radius: 12px;
+  --radius-sm: 8px; --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --shadow: 0 4px 24px rgba(0,0,0,0.3);
+  --font: 'DM Sans', -apple-system, sans-serif;
+  --mono: 'JetBrains Mono', monospace;
+  --scrollbar-bg: transparent; --scrollbar-thumb: var(--text-muted);
+}
+[data-theme="light"] {
+  --bg-primary: #f0f2f5; --bg-secondary: #ffffff; --bg-card: #ffffff;
+  --bg-elevated: #f5f6f8; --accent: #d63451; --accent-hover: #e94560;
+  --accent-glow: rgba(214, 52, 81, 0.2); --text-primary: #1a1a2e;
+  --text-secondary: #5a6377; --text-muted: #8892a4;
+  --border: rgba(0,0,0,0.08); --success: #27ae60;
+  --warning: #e67e22; --info: #2980b9;
+  --shadow: 0 2px 12px rgba(0,0,0,0.08);
+  --scrollbar-thumb: #c0c4cc;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; font-family: var(--font); background: var(--bg-primary); color: var(--text-primary); overflow: hidden; -webkit-tap-highlight-color: transparent; }
+::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 4px; }
+[data-theme="light"] .card { box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+[data-theme="light"] .card:hover { border-color: rgba(214,52,81,0.2); box-shadow: var(--shadow); }
+[data-theme="light"] .card-meta span { background: rgba(0,0,0,0.04); }
+[data-theme="light"] .card-actions button { background: rgba(0,0,0,0.04); }
+[data-theme="light"] .fab { box-shadow: 0 4px 16px rgba(214,52,81,0.3); }
+[data-theme="light"] .modal { box-shadow: 0 8px 32px rgba(0,0,0,0.15); }
+[data-theme="light"] input, [data-theme="light"] textarea, [data-theme="light"] select { background: var(--bg-elevated); color: var(--text-primary); border-color: var(--border); }
+[data-theme="light"] .status-badge { font-weight: 700; }
+#app { height: 100%; display: flex; flex-direction: column; }
+.topbar { background: var(--bg-secondary); border-bottom: 1px solid var(--border); padding: 8px 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-height: 48px; position: relative; z-index: 100; }
+.topbar-row { display: flex; align-items: center; gap: 6px; width: 100%; }
+.topbar-row:first-child { min-height: 36px; }
+.topbar .back-btn { background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 20px; padding: 4px 6px; display: none; transition: var(--transition); flex-shrink: 0; }
+.topbar .back-btn:hover { color: var(--accent); } .topbar .back-btn.visible { display: block; }
+.topbar h1 { font-size: 16px; font-weight: 700; letter-spacing: -0.3px; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.topbar h1 .brand-accent { color: var(--accent); }
+.topbar-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.topbar .sync-indicator { font-size: 10px; padding: 3px 8px; border-radius: 20px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; font-family: var(--mono); cursor: pointer; white-space: nowrap; }
+.btn-sm.btn-secondary { padding: 4px 8px; font-size: 13px; }
+@media (min-width: 768px) {
+  .topbar { padding: 10px 20px; gap: 10px; flex-wrap: nowrap; }
+  .topbar-row { width: auto; }
+  .topbar h1 { font-size: 18px; }
+  .topbar .sync-indicator { font-size: 11px; padding: 4px 10px; }
+  .btn-sm.btn-secondary { padding: 6px 10px; }
+}
+.sync-indicator.online { background: rgba(46,204,113,0.15); color: var(--success); }
+.sync-indicator.offline { background: rgba(243,156,18,0.15); color: var(--warning); }
+.sync-indicator.syncing { background: rgba(52,152,219,0.15); color: var(--info); animation: pulse 1.5s infinite; }
+.sync-indicator.error { background: rgba(231,76,60,0.15); color: #e74c3c; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+.main-content { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 20px; scroll-behavior: smooth; }
+.card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; cursor: pointer; transition: var(--transition); position: relative; overflow: hidden; }
+.card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--accent); transform: scaleY(0); transition: var(--transition); }
+.card:hover::before, .card:active::before { transform: scaleY(1); }
+.card:hover { border-color: rgba(233,69,96,0.2); transform: translateY(-1px); box-shadow: var(--shadow); }
+.card-title { font-size: 16px; font-weight: 400; margin-bottom: 4px; } .card-subtitle { font-size: 13px; color: var(--text-secondary); }
+.card-meta { display: flex; gap: 12px; margin-top: 8px; flex-wrap: wrap; }
+.card-meta span { font-size: 11px; font-family: var(--mono); color: var(--text-muted); background: rgba(255,255,255,0.04); padding: 2px 8px; border-radius: 4px; }
+.card-actions { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); display: flex; gap: 4px; }
+.card-actions button { background: rgba(255,255,255,0.05); border: none; color: var(--text-secondary); width: 32px; height: 32px; border-radius: var(--radius-sm); cursor: pointer; font-size: 14px; transition: var(--transition); }
+.card-actions button:hover { background: var(--accent); color: white; }
+/* Text size variants */
+.text-sm .card-title { font-size: 13px; } .text-sm .card-subtitle { font-size: 11px; } .text-sm .snag-id { font-size: 11px; } .text-sm .card { padding: 10px; margin-bottom: 8px; } .text-sm .card-meta span { font-size: 10px; }
+.text-md .card-title { font-size: 16px; }
+.text-lg .card-title { font-size: 19px; } .text-lg .card-subtitle { font-size: 15px; } .text-lg .card { padding: 20px; } .text-lg .card-meta span { font-size: 12px; }
+/* Table view */
+.table-view { width: 100%; border-collapse: separate; border-spacing: 0; }
+.table-view th { text-align: left; padding: 10px 12px; font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; font-family: var(--mono); background: var(--bg-secondary); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 2; cursor: grab; user-select: none; white-space: nowrap; }
+.table-view th:active { cursor: grabbing; }
+.table-view th.drag-over { border-left: 2px solid var(--accent); }
+.table-view th:last-child { cursor: default; } /* actions column not draggable */
+.table-view td { padding: 10px 12px; font-size: 13px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.table-view tr { cursor: pointer; transition: var(--transition); }
+.table-view tbody tr:hover { background: var(--bg-elevated); }
+.table-view .tbl-actions { display: flex; gap: 4px; }
+.table-view .tbl-actions button { background: rgba(255,255,255,0.05); border: none; color: var(--text-secondary); width: 28px; height: 28px; border-radius: var(--radius-sm); cursor: pointer; font-size: 12px; transition: var(--transition); }
+.table-view .tbl-actions button:hover { background: var(--accent); color: white; }
+/* View toggle button */
+.view-toggle { display: flex; gap: 2px; background: var(--bg-elevated); border-radius: var(--radius-sm); padding: 2px; }
+.view-toggle button { background: none; border: none; color: var(--text-muted); padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 14px; transition: var(--transition); }
+.view-toggle button.active { background: var(--accent); color: white; }
+.fab { position: fixed; bottom: 24px; right: 24px; width: 56px; height: 56px; background: var(--accent); color: white; border: none; border-radius: 50%; font-size: 28px; cursor: pointer; box-shadow: 0 4px 20px var(--accent-glow); transition: var(--transition); z-index: 90; display: flex; align-items: center; justify-content: center; }
+.fab:hover { transform: scale(1.08); background: var(--accent-hover); } .fab:active { transform: scale(0.95); }
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); z-index: 200; display: none; align-items: flex-end; justify-content: center; animation: fadeIn 0.2s ease; }
+.modal-overlay.active { display: flex; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } } @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.modal { background: var(--bg-secondary); border-radius: var(--radius) var(--radius) 0 0; width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto; animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+.modal-header { padding: 20px 20px 12px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; background: var(--bg-secondary); z-index: 5; border-bottom: 1px solid var(--border); }
+.modal-header h2 { font-size: 18px; font-weight: 700; }
+.modal-close { background: none; border: none; color: var(--text-secondary); font-size: 24px; cursor: pointer; padding: 4px; }
+.modal-close:hover { color: var(--accent); } .modal-body { padding: 20px; }
+.form-group { margin-bottom: 16px; }
+.form-group label { display: block; font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.8px; }
+.form-group input, .form-group textarea, .form-group select { width: 100%; padding: 12px 14px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-primary); font-family: var(--font); font-size: 14px; transition: var(--transition); outline: none; }
+.form-group input:focus, .form-group textarea:focus, .form-group select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+.form-group textarea { min-height: 80px; resize: vertical; } .form-group select { appearance: none; cursor: pointer; }
+.photo-upload-area { border: 2px dashed var(--border); border-radius: var(--radius); padding: 20px; text-align: center; cursor: pointer; transition: var(--transition); color: var(--text-muted); }
+.photo-upload-area:hover, .photo-upload-area.dragover { border-color: var(--accent); color: var(--accent); background: rgba(233,69,96,0.05); }
+.photo-upload-area .icon { font-size: 32px; margin-bottom: 8px; } .photo-upload-area p { font-size: 13px; }
+.photo-preview-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 8px; margin-top: 12px; }
+.photo-thumb { position: relative; aspect-ratio: 1; border-radius: var(--radius-sm); overflow: hidden; }
+.photo-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.photo-thumb .remove-photo { position: absolute; top: 4px; right: 4px; background: rgba(0,0,0,0.7); border: none; color: white; width: 20px; height: 20px; border-radius: 50%; cursor: pointer; font-size: 12px; display: flex; align-items: center; justify-content: center; }
+.btn { padding: 12px 24px; border: none; border-radius: var(--radius-sm); font-family: var(--font); font-size: 14px; font-weight: 600; cursor: pointer; transition: var(--transition); display: inline-flex; align-items: center; gap: 8px; }
+.btn-primary { background: var(--accent); color: white; } .btn-primary:hover { background: var(--accent-hover); }
+.btn-secondary { background: rgba(255,255,255,0.06); color: var(--text-primary); } .btn-secondary:hover { background: rgba(255,255,255,0.1); }
+.btn-danger { background: rgba(233,69,96,0.15); color: var(--accent); } .btn-danger:hover { background: rgba(233,69,96,0.25); }
+.btn-full { width: 100%; justify-content: center; } .btn-sm { padding: 8px 14px; font-size: 12px; }
+.status-badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; font-family: var(--mono); }
+.status-open { background: rgba(231,76,60,0.15); color: #e74c3c; } .status-closed { background: rgba(149,165,166,0.15); color: #95a5a6; }
+.status-completed { background: rgba(46,204,113,0.15); color: #2ecc71; } .status-fixed { background: rgba(52,152,219,0.15); color: #3498db; }
+.priority-high { background: rgba(231,76,60,0.15); color: #e74c3c; } .priority-medium { background: rgba(243,156,18,0.15); color: #f39c12; } .priority-low { background: rgba(46,204,113,0.15); color: #2ecc71; }
+.snag-detail-header { background: var(--bg-card); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; }
+.snag-id { font-family: var(--mono); color: var(--accent); font-size: 13px; font-weight: 500; }
+.snag-desc { font-size: 16px; font-weight: 400; margin: 8px 0; }
+.snag-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.snag-photos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; margin: 16px 0; }
+.snag-photo { aspect-ratio: 4/3; border-radius: var(--radius-sm); overflow: hidden; cursor: pointer; }
+.snag-photo img { width: 100%; height: 100%; object-fit: cover; transition: var(--transition); }
+.snag-photo:hover img { transform: scale(1.05); }
+.comments-section { margin-top: 16px; }
+.comments-section h3 { font-size: 14px; font-weight: 600; color: var(--text-secondary); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+.comment-item { background: var(--bg-card); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 8px; }
+.comment-text { font-size: 14px; line-height: 1.5; } .comment-date { font-size: 11px; color: var(--text-muted); margin-top: 4px; font-family: var(--mono); }
+.comment-input-row { display: flex; gap: 8px; margin-top: 12px; } .comment-input-row input { flex: 1; }
+.export-option { display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--bg-elevated); border-radius: var(--radius-sm); margin-bottom: 8px; }
+.export-option label { font-size: 14px; cursor: pointer; flex: 1; }
+.export-option input[type="checkbox"] { accent-color: var(--accent); width: 18px; height: 18px; cursor: pointer; }
+.quality-slider { display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--bg-elevated); border-radius: var(--radius-sm); margin-bottom: 8px; }
+.quality-slider input[type="range"] { flex: 1; accent-color: var(--accent); }
+.quality-slider .quality-value { font-family: var(--mono); font-size: 13px; color: var(--accent); min-width: 40px; text-align: right; }
+.tag-list { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.tag { display: flex; align-items: center; gap: 6px; padding: 6px 12px; background: var(--bg-elevated); border-radius: 20px; font-size: 13px; }
+.tag .remove-tag { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 14px; padding: 0 2px; }
+.tag .remove-tag:hover { color: var(--accent); } .add-tag-row { display: flex; gap: 8px; } .add-tag-row input { flex: 1; }
+.empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); }
+.empty-state .icon { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
+.empty-state h3 { font-size: 18px; margin-bottom: 8px; color: var(--text-secondary); } .empty-state p { font-size: 14px; line-height: 1.6; }
+.lightbox { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 500; display: none; align-items: center; justify-content: center; }
+.lightbox.active { display: flex; }
+.lightbox img { max-width: 95vw; max-height: 90vh; object-fit: contain; border-radius: var(--radius-sm); }
+.lightbox .close-lightbox { position: absolute; top: 16px; right: 16px; background: rgba(255,255,255,0.1); border: none; color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 20px; }
+.export-progress { background: var(--bg-elevated); border-radius: var(--radius-sm); padding: 16px; margin-top: 12px; display: none; }
+.export-progress.active { display: block; }
+.progress-bar { height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; margin-top: 8px; }
+.progress-bar-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.3s; width: 0%; }
+.list-toolbar { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+.list-toolbar select { padding: 8px 12px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-primary); font-family: var(--font); font-size: 13px; outline: none; cursor: pointer; }
+.list-toolbar .search-input { flex: 1; min-width: 140px; padding: 8px 12px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-primary); font-family: var(--font); font-size: 13px; outline: none; }
+.toast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%) translateY(100px); background: var(--bg-elevated); color: var(--text-primary); padding: 12px 24px; border-radius: var(--radius); font-size: 14px; font-weight: 500; box-shadow: 0 8px 32px rgba(0,0,0,0.4); border: 1px solid var(--border); z-index: 300; opacity: 0; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.view { display: none; height: 100%; flex-direction: column; } .view.active { display: flex; }
+.lightbox-nav { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(255,255,255,0.1); border: none; color: white; width: 44px; height: 44px; border-radius: 50%; cursor: pointer; font-size: 20px; transition: var(--transition); }
+.lightbox-nav:hover { background: rgba(255,255,255,0.2); } .lightbox-nav.prev { left: 16px; } .lightbox-nav.next { right: 16px; }
+@media (min-width: 768px) { .main-content { padding: 24px 40px; max-width: 900px; margin: 0 auto; } .modal { border-radius: var(--radius); max-height: 85vh; margin-bottom: 40px; } .modal-overlay { align-items: center; } .card { padding: 20px; } .snag-photos-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); } .fab { bottom: 32px; right: 32px; } }
+@media (min-width: 1200px) { .main-content { max-width: 1000px; padding: 32px 60px; } }
+</style>
+</head>
+<body>
+<div id="login-screen" style="display:flex;align-items:center;justify-content:center;height:100%;padding:24px">
+  <div style="width:100%;max-width:360px">
+    <div style="text-align:center;margin-bottom:32px"><h1 style="font-size:24px;font-weight:700"><span style="color:var(--accent)">Site</span> Inspector Pro</h1><p style="color:var(--text-secondary);font-size:13px;margin-top:4px">Sign in to continue</p></div>
+    <div id="login-form">
+      <div class="form-group"><label>Username</label><input type="text" id="f-login-user" placeholder="Username" autocomplete="username" autofocus></div>
+      <div class="form-group"><label>Password</label><input type="password" id="f-login-pass" placeholder="Password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"></div>
+      <div id="login-error" style="font-size:12px;color:#e74c3c;min-height:20px;margin-bottom:8px"></div>
+      <button class="btn btn-primary btn-full" onclick="doLogin()">Sign In</button>
+      <button class="btn btn-secondary btn-full" style="margin-top:8px" onclick="showRegister()">Create Account</button>
+      <p style="text-align:center;margin-top:16px"><a href="#" onclick="skipLogin()" style="font-size:12px;color:var(--text-muted);text-decoration:none">Use offline without account →</a></p>
+    </div>
+    <div id="register-form" style="display:none">
+      <div id="admin-setup" style="padding:12px;background:var(--bg-elevated);border-radius:var(--radius-sm);margin-bottom:16px;font-size:12px">
+        <p style="color:var(--text-secondary);margin-bottom:8px"><strong>Admin credentials</strong> (needed to create accounts)</p>
+        <div class="form-group" style="margin:0 0 8px 0"><input type="text" id="f-admin-user" placeholder="Admin username" value="admin" style="font-size:13px"></div>
+        <div class="form-group" style="margin:0"><input type="password" id="f-admin-pass" placeholder="Admin password" style="font-size:13px"></div>
+      </div>
+      <div class="form-group"><label>Username</label><input type="text" id="f-reg-user" placeholder="Choose a username" autocomplete="username"></div>
+      <div class="form-group"><label>Password</label><input type="password" id="f-reg-pass" placeholder="Choose a password" autocomplete="new-password"></div>
+      <div class="form-group"><label>Confirm Password</label><input type="password" id="f-reg-pass2" placeholder="Confirm password" autocomplete="new-password" onkeydown="if(event.key==='Enter')doRegister()"></div>
+      <div id="register-error" style="font-size:12px;color:#e74c3c;min-height:20px;margin-bottom:8px"></div>
+      <button class="btn btn-primary btn-full" onclick="doRegister()">Create Account</button>
+      <button class="btn btn-secondary btn-full" style="margin-top:8px" onclick="showLoginForm()">Back to Sign In</button>
+    </div>
+    <p style="text-align:center;color:var(--text-muted);font-size:11px;font-family:var(--mono);margin-top:32px">Site Inspector Pro v0.6</p>
+  </div>
+</div>
+<div id="app" style="display:none">
+  <div id="view-projects" class="view active">
+    <div class="topbar">
+      <div class="topbar-row">
+        <h1><span class="brand-accent">Site</span> Inspector Pro</h1>
+        <span id="sync-status" class="sync-indicator offline" onclick="openSettings()" title="Click to configure sync">No Sync</span>
+      </div>
+      <div class="topbar-row">
+        <div class="view-toggle" id="toggle-projects"><button class="active" onclick="setViewMode('projects','card')" title="Cards">▦</button><button onclick="setViewMode('projects','table')" title="Table">☰</button></div>
+        <div class="topbar-actions">
+          <button class="btn-sm btn-secondary" onclick="forceSync()" title="Sync Now">🔄</button>
+          <button class="btn-sm btn-secondary" id="theme-toggle-btn" onclick="toggleTheme()" title="Toggle Light/Dark">🌙</button>
+          <button class="btn-sm btn-secondary" onclick="openSettings()" title="Settings">⚙</button>
+        </div>
+      </div>
+    </div>
+    <div class="main-content"><div id="projects-list"></div></div>
+    <button class="fab" onclick="openProjectModal()">+</button>
+  </div>
+  <div id="view-locations" class="view">
+    <div class="topbar">
+      <div class="topbar-row">
+        <button class="back-btn visible" onclick="navigateTo('projects')">←</button>
+        <h1 id="locations-title">Locations</h1>
+      </div>
+      <div class="topbar-row">
+        <div class="view-toggle" id="toggle-locations"><button class="active" onclick="setViewMode('locations','card')" title="Cards">▦</button><button onclick="setViewMode('locations','table')" title="Table">☰</button></div>
+        <div class="topbar-actions">
+          <button class="btn-sm btn-secondary" onclick="openExportModal()" title="Export Project">📤</button>
+          <button class="btn-sm btn-secondary" onclick="navigateTo('projects')" title="Home">🏠</button>
+        </div>
+      </div>
+    </div>
+    <div class="main-content"><div id="locations-list"></div></div>
+    <button class="fab" onclick="openLocationModal()">+</button>
+  </div>
+  <div id="view-snags" class="view">
+    <div class="topbar">
+      <div class="topbar-row">
+        <button class="back-btn visible" onclick="navigateTo('locations')">←</button>
+        <h1 id="snags-title">Snags</h1>
+      </div>
+      <div class="topbar-row">
+        <div class="view-toggle" id="toggle-snags"><button class="active" onclick="setViewMode('snags','card')" title="Cards">▦</button><button onclick="setViewMode('snags','table')" title="Table">☰</button></div>
+        <div class="topbar-actions">
+          <button class="btn-sm btn-secondary" onclick="openExportModal()" title="Export Project">📤</button>
+          <button class="btn-sm btn-secondary" onclick="navigateTo('projects')" title="Home">🏠</button>
+        </div>
+      </div>
+    </div>
+    <div class="main-content">
+      <div class="list-toolbar">
+        <input type="text" class="search-input" placeholder="Search snags..." oninput="filterSnags(this.value)">
+        <select onchange="filterSnagsByStatus(this.value)"><option value="">All Status</option></select>
+        <select onchange="filterSnagsByPriority(this.value)"><option value="">All Priority</option><option value="High">High</option><option value="Medium">Medium</option><option value="Low">Low</option></select>
+      </div>
+      <div id="snags-list"></div>
+    </div>
+    <button class="fab" onclick="openSnagModal()">+</button>
+  </div>
+  <div id="view-snag-detail" class="view">
+    <div class="topbar">
+      <div class="topbar-row">
+        <button class="back-btn visible" onclick="navigateTo('snags')">←</button>
+        <h1 id="snag-detail-title">Snag Detail</h1>
+        <div class="topbar-actions">
+          <button class="btn-sm btn-secondary" onclick="editCurrentSnag()" title="Edit">✏️</button>
+          <button class="btn-sm btn-secondary" onclick="navigateTo('projects')" title="Home">🏠</button>
+        </div>
+      </div>
+    </div>
+    <div class="main-content"><div id="snag-detail-content"></div></div>
+  </div>
+</div>
+<div id="modal-overlay" class="modal-overlay" onclick="closeModalOnOverlay(event)"><div class="modal" id="modal-content"></div></div>
+<div id="lightbox" class="lightbox" onclick="closeLightbox()">
+  <button class="close-lightbox" onclick="closeLightbox()">✕</button>
+  <button class="lightbox-save" onclick="event.stopPropagation(); saveLightboxPhoto()" title="Save to device" style="position:absolute;top:16px;left:16px;background:rgba(255,255,255,0.1);border:none;color:white;width:40px;height:40px;border-radius:50%;cursor:pointer;font-size:18px;z-index:501">💾</button>
+  <button class="lightbox-nav prev" onclick="event.stopPropagation(); navigateLightbox(-1)">‹</button>
+  <img id="lightbox-img" src="" alt="">
+  <button class="lightbox-nav next" onclick="event.stopPropagation(); navigateLightbox(1)">›</button>
+</div>
+<div id="toast" class="toast"></div>
+
+<script>
+// ============================================================
+// AUTH & DATABASE — PouchDB (local IndexedDB + CouchDB sync)
+// ============================================================
+var currentUser = null; // { name, serverUrl }
+var localDBs = {};
+const DB_NAMES = ['projects','locations','snags','photos','comments','settings'];
+
+function getDbPrefix() {
+  if (!currentUser || !currentUser.name) return 'sip_local_';
+  return 'sip_' + currentUser.name.toLowerCase().replace(/[^a-z0-9]/g, '_') + '_';
+}
+
+function initLocalDBs() {
+  var prefix = getDbPrefix();
+  localDBs = {};
+  DB_NAMES.forEach(function(name) {
+    localDBs[name] = new PouchDB(prefix + name);
+  });
+}
+
+function toHex(str) { var hex = ''; for (var i = 0; i < str.length; i++) hex += str.charCodeAt(i).toString(16); return hex; }
+
+// ── Auth ────────────────────────────────────────────────────
+function getStoredSession() {
+  try { return JSON.parse(localStorage.getItem('sip_session')); } catch(e) { return null; }
+}
+function setStoredSession(session) {
+  localStorage.setItem('sip_session', JSON.stringify(session));
+}
+function clearStoredSession() {
+  localStorage.removeItem('sip_session');
+}
+
+function showLoginScreen() {
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+}
+function showApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = '';
+}
+function showRegister() {
+  document.getElementById('login-form').style.display = 'none';
+  document.getElementById('register-form').style.display = '';
+  document.getElementById('register-error').textContent = '';
+}
+function showLoginForm() {
+  document.getElementById('register-form').style.display = 'none';
+  document.getElementById('login-form').style.display = '';
+  document.getElementById('login-error').textContent = '';
+}
+
+async function doLogin() {
+  var user = document.getElementById('f-login-user').value.trim();
+  var pass = document.getElementById('f-login-pass').value;
+  var errEl = document.getElementById('login-error');
+  if (!user || !pass) { errEl.textContent = 'Enter username and password'; return; }
+  errEl.innerHTML = '<span style="color:var(--info)">Signing in...</span>';
+
+  var serverUrl = localStorage.getItem('sip_server_url') || '';
+  if (!serverUrl) {
+    // No server configured — try current origin
+    serverUrl = window.location.origin + '/db';
+  }
+  try {
+    var cleanBase = serverUrl.replace(/\/+$/, '');
+    var headers = { 'Content-Type': 'application/json', 'Authorization': 'Basic ' + btoa(user + ':' + pass) };
+    var resp = await fetch(cleanBase + '/_session', { mode: 'cors', cache: 'no-store', headers: headers });
+    if (!resp.ok) { errEl.textContent = 'Invalid username or password'; return; }
+    var data = await resp.json();
+    if (!data.userCtx || !data.userCtx.name) { errEl.textContent = 'Invalid username or password'; return; }
+    currentUser = { name: data.userCtx.name, pass: pass, serverUrl: serverUrl };
+    setStoredSession(currentUser);
+    afterLogin();
+  } catch(e) {
+    // Server unreachable — check if we have a stored session for offline use
+    var stored = getStoredSession();
+    if (stored && stored.name === user) {
+      currentUser = stored;
+      afterLogin();
+    } else {
+      errEl.textContent = 'Cannot reach server. Check your connection.';
+    }
+  }
+}
+
+async function doRegister() {
+  var user = document.getElementById('f-reg-user').value.trim();
+  var pass = document.getElementById('f-reg-pass').value;
+  var pass2 = document.getElementById('f-reg-pass2').value;
+  var errEl = document.getElementById('register-error');
+  if (!user || !pass) { errEl.textContent = 'All fields required'; return; }
+  if (user.length < 3) { errEl.textContent = 'Username must be at least 3 characters'; return; }
+  if (pass.length < 4) { errEl.textContent = 'Password must be at least 4 characters'; return; }
+  if (pass !== pass2) { errEl.textContent = 'Passwords do not match'; return; }
+  errEl.innerHTML = '<span style="color:var(--info)">Creating account...</span>';
+
+  var serverUrl = localStorage.getItem('sip_server_url') || '';
+  if (!serverUrl) serverUrl = window.location.origin + '/db';
+  try {
+    var cleanBase = serverUrl.replace(/\/+$/, '');
+    // Get admin creds from the form
+    var adminUser = document.getElementById('f-admin-user').value.trim() || 'admin';
+    var adminPass = document.getElementById('f-admin-pass').value;
+    if (!adminPass) { errEl.textContent = 'Admin password is required to create accounts'; return; }
+    var headers = { 'Content-Type': 'application/json', 'Authorization': 'Basic ' + btoa(adminUser + ':' + adminPass) };
+    var userDoc = {
+      _id: 'org.couchdb.user:' + user,
+      name: user,
+      password: pass,
+      roles: [],
+      type: 'user'
+    };
+    var resp = await fetch(cleanBase + '/_users/org.couchdb.user:' + encodeURIComponent(user), {
+      method: 'PUT', mode: 'cors', cache: 'no-store', headers: headers, body: JSON.stringify(userDoc)
+    });
+    if (resp.status === 409) { errEl.textContent = 'Username already taken'; return; }
+    if (!resp.ok) {
+      var errData = await resp.json().catch(function() { return {}; });
+      errEl.textContent = 'Registration failed: ' + (errData.reason || resp.status);
+      return;
+    }
+    // Create per-user databases using admin credentials
+    var hexUser = toHex(user);
+    for (var i = 0; i < DB_NAMES.length; i++) {
+      var dbName = 'userdb_' + hexUser + '_' + DB_NAMES[i];
+      await fetch(cleanBase + '/' + dbName, { method: 'PUT', mode: 'cors', cache: 'no-store', headers: headers });
+      // Set security so only this user can access
+      var secDoc = { admins: { names: [adminUser, user], roles: [] }, members: { names: [user], roles: [] } };
+      await fetch(cleanBase + '/' + dbName + '/_security', { method: 'PUT', mode: 'cors', cache: 'no-store', headers: headers, body: JSON.stringify(secDoc) });
+    }
+    errEl.innerHTML = '<span style="color:var(--success)">Account created! Signing in...</span>';
+    // Auto-login
+    currentUser = { name: user, pass: pass, serverUrl: serverUrl };
+    setStoredSession(currentUser);
+    setTimeout(afterLogin, 500);
+  } catch(e) {
+    errEl.textContent = 'Cannot reach server: ' + (e.message || 'connection failed');
+  }
+}
+
+function skipLogin() {
+  currentUser = { name: '', pass: '', serverUrl: '' };
+  setStoredSession(currentUser);
+  afterLogin();
+}
+
+function afterLogin() {
+  initLocalDBs();
+  showApp();
+  init();
+}
+
+function logout() {
+  stopSync(); stopChangeListeners(); stopPoll();
+  clearStoredSession();
+  currentUser = null;
+  localDBs = {};
+  showLoginForm();
+  showLoginScreen();
+}
+
+let activeSyncs = {};
+let syncStatus = 'offline';
+
+function getSyncConfig() {
+  if (currentUser && currentUser.name && currentUser.serverUrl) {
+    return { url: currentUser.serverUrl, user: currentUser.name, pass: currentUser.pass || '' };
+  }
+  return { url: '', user: '', pass: '' };
+}
+
+function getRemoteDbName(localName) {
+  if (!currentUser || !currentUser.name) return 'snagtrack_' + localName;
+  return 'userdb_' + toHex(currentUser.name) + '_' + localName;
+}
+
+// Build authenticated URL for PouchDB: http://user:pass@host/db
+function buildSyncURL(base, dbName) {
+  var cfg = getSyncConfig();
+  if (!cfg.url) return '';
+  try {
+    var parsed = new URL(cfg.url);
+    if (cfg.user) { parsed.username = cfg.user; parsed.password = cfg.pass || ''; }
+    return parsed.toString().replace(/\/+$/, '') + '/' + dbName;
+  } catch(e) { return ''; }
+}
+
+function startSync() {
+  stopSync();
+  var cfg = getSyncConfig();
+  if (!cfg.url) { updateSyncIndicator('offline'); return; }
+  updateSyncIndicator('syncing');
+  let connected = false;
+  const dbNames = ['projects','locations','snags','photos','comments','settings'];
+  dbNames.forEach(name => {
+    const remoteURL = buildSyncURL(cfg.url, getRemoteDbName(name));
+    if (!remoteURL) return;
+    const sync = localDBs[name].sync(remoteURL, { live: true, retry: true, batch_size: 50, batches_limit: 5 });
+    sync.on('change', info => {
+      connected = true; updateSyncIndicator('online');
+      console.log('[Sync:' + name + '] ' + info.direction + ': ' + info.change.docs.length + ' docs');
+      if (info.direction === 'pull') refreshCurrentView();
+    });
+    sync.on('paused', err => {
+      if (err) { console.warn('[Sync:' + name + '] paused with error:', err); }
+      else if (connected) { updateSyncIndicator('online'); }
+    });
+    sync.on('active', () => { connected = true; updateSyncIndicator('syncing'); });
+    sync.on('denied', err => { console.error('[Sync:' + name + '] DENIED:', err); showToast('Sync denied for ' + name + '. Check permissions.'); updateSyncIndicator('error'); });
+    sync.on('error', err => { console.error('[Sync:' + name + '] ERROR:', err); updateSyncIndicator('error'); });
+    activeSyncs[name] = sync;
+  });
+  setTimeout(() => {
+    if (!connected && syncStatus === 'syncing') {
+      var checkURL = cfg.url.replace(/\/+$/, '');
+      fetch(checkURL + '/_up', { mode: 'cors', cache: 'no-store' })
+        .then(r => { if (!r.ok) updateSyncIndicator('error'); })
+        .catch(() => updateSyncIndicator('error'));
+    }
+  }, 8000);
+}
+
+function stopSync() {
+  Object.values(activeSyncs).forEach(s => { try { s.cancel(); } catch(e) {} });
+  activeSyncs = {};
+}
+
+function updateSyncIndicator(status) {
+  syncStatus = status;
+  const el = document.getElementById('sync-status');
+  const labels = { offline:'No Sync', syncing:'Syncing…', online:'Synced', error:'Sync Error' };
+  el.textContent = labels[status] || status;
+  el.className = 'sync-indicator ' + status;
+}
+
+// Force sync: do a one-shot push+pull for all databases, then restart live sync
+async function forceSync() {
+  var cfg = getSyncConfig();
+  if (!cfg.url) { showToast('No sync server configured'); return; }
+  stopSync();
+  updateSyncIndicator('syncing');
+  showToast('Syncing...');
+  var pushCount = 0, pullCount = 0, errors = [];
+  const dbNames = ['projects','locations','snags','photos','comments','settings'];
+  for (var i = 0; i < dbNames.length; i++) {
+    var name = dbNames[i];
+    var remoteURL = buildSyncURL(cfg.url, getRemoteDbName(name));
+    if (!remoteURL) continue;
+    try {
+      // Push local → remote
+      var pushResult = await localDBs[name].replicate.to(remoteURL, { batch_size: 50 });
+      pushCount += pushResult.docs_written || 0;
+      console.log('[ForceSync:' + name + '] pushed ' + (pushResult.docs_written || 0) + ' docs');
+    } catch(e) {
+      console.error('[ForceSync:' + name + '] push error:', e);
+      errors.push(name + '(push): ' + (e.message || e.reason || 'unknown'));
+    }
+    try {
+      // Pull remote → local
+      var pullResult = await localDBs[name].replicate.from(remoteURL, { batch_size: 50 });
+      pullCount += pullResult.docs_written || 0;
+      console.log('[ForceSync:' + name + '] pulled ' + (pullResult.docs_written || 0) + ' docs');
+    } catch(e) {
+      console.error('[ForceSync:' + name + '] pull error:', e);
+      errors.push(name + '(pull): ' + (e.message || e.reason || 'unknown'));
+    }
+  }
+  refreshCurrentView();
+  if (errors.length > 0) {
+    updateSyncIndicator('error');
+    showToast('Sync errors: ' + errors.join(', '));
+  } else {
+    updateSyncIndicator('online');
+    showToast('Synced! Pushed ' + pushCount + ', pulled ' + pullCount + ' docs');
+  }
+  // Restart live sync
+  startSync();
+}
+// Listen for ALL changes on local PouchDB databases (from sync
+// AND from local writes). This ensures the UI always stays fresh.
+let changeFeeds = {};
+let refreshTimer = null;
+let lastRefreshData = '';
+
+function refreshCurrentView() {
+  clearTimeout(refreshTimer);
+  refreshTimer = setTimeout(() => {
+    switch(currentView) {
+      case 'projects': renderProjects(); break;
+      case 'locations': renderLocations(); break;
+      case 'snags': renderSnags(); break;
+      case 'snag-detail': renderSnagDetail(); break;
+    }
+  }, 250);
+}
+
+function startChangeListeners() {
+  stopChangeListeners();
+  // Listen on the DBs that matter for display (not photos — too noisy)
+  ['projects', 'locations', 'snags', 'comments', 'settings'].forEach(name => {
+    const feed = localDBs[name].changes({
+      since: 'now',
+      live: true
+    });
+    feed.on('change', () => { refreshCurrentView(); });
+    changeFeeds[name] = feed;
+  });
+}
+
+function stopChangeListeners() {
+  Object.values(changeFeeds).forEach(f => { try { f.cancel(); } catch(e) {} });
+  changeFeeds = {};
+}
+
+// Periodic safety-net poll: re-render every 10s in case change
+// events were missed (e.g. after tab sleep/wake on mobile)
+let pollInterval = null;
+function startPoll() {
+  stopPoll();
+  pollInterval = setInterval(() => { refreshCurrentView(); }, 10000);
+}
+function stopPoll() { if (pollInterval) { clearInterval(pollInterval); pollInterval = null; } }
+
+// ── PouchDB CRUD ────────────────────────────────────────────
+async function getAll(dbName, filterFn) {
+  const result = await localDBs[dbName].allDocs({ include_docs: true });
+  let docs = result.rows.filter(r => !r.id.startsWith('_design/')).map(r => r.doc);
+  if (filterFn) docs = docs.filter(filterFn);
+  return docs;
+}
+
+async function getById(dbName, id) {
+  try { return await localDBs[dbName].get(id); }
+  catch(e) { if (e.status === 404) return null; throw e; }
+}
+
+async function put(dbName, doc) {
+  if (doc._id) {
+    try { const existing = await localDBs[dbName].get(doc._id); doc._rev = existing._rev; }
+    catch(e) { if (e.status !== 404) throw e; }
+  }
+  const result = await localDBs[dbName].put(doc);
+  doc._rev = result.rev;
+  return doc;
+}
+
+async function removeDoc(dbName, id) {
+  try { const doc = await localDBs[dbName].get(id); await localDBs[dbName].remove(doc); }
+  catch(e) { if (e.status !== 404) throw e; }
+}
+
+// ── State ───────────────────────────────────────────────────
+let currentProjectId = null, currentLocationId = null, currentSnagId = null;
+let currentView = 'projects';
+let snagFilter = { search: '', status: '', priority: '' };
+let lightboxPhotos = [], lightboxIndex = 0;
+
+// View preferences (persisted in localStorage)
+var viewModes = JSON.parse(localStorage.getItem('snagtrack_viewModes') || '{}');
+var textSize = localStorage.getItem('snagtrack_textSize') || 'md';
+var currentTheme = localStorage.getItem('snagtrack_theme') || 'dark';
+var defaultViewMode = localStorage.getItem('snagtrack_defaultView') || 'card';
+
+function getViewMode(view) { return viewModes[view] || defaultViewMode; }
+function setViewMode(view, mode) {
+  viewModes[view] = mode;
+  localStorage.setItem('snagtrack_viewModes', JSON.stringify(viewModes));
+  // Update toggle buttons
+  var toggle = document.getElementById('toggle-' + view);
+  if (toggle) { toggle.querySelectorAll('button').forEach(function(b) { b.classList.remove('active'); }); toggle.querySelector('button:' + (mode === 'card' ? 'first-child' : 'last-child')).classList.add('active'); }
+  refreshCurrentView();
+}
+function setTextSize(size) {
+  textSize = size;
+  localStorage.setItem('snagtrack_textSize', size);
+  applyTextSize();
+  refreshCurrentView();
+}
+function applyTextSize() {
+  var app = document.getElementById('app');
+  app.classList.remove('text-sm', 'text-md', 'text-lg');
+  app.classList.add('text-' + textSize);
+}
+function applyTheme(theme) {
+  currentTheme = theme;
+  document.documentElement.setAttribute('data-theme', theme);
+  localStorage.setItem('snagtrack_theme', theme);
+  // Update meta theme-color for mobile browser chrome
+  var metaTheme = document.getElementById('meta-theme-color');
+  if (metaTheme) metaTheme.setAttribute('content', theme === 'light' ? '#ffffff' : '#1a1a2e');
+  // Update toggle button icon
+  var btn = document.getElementById('theme-toggle-btn');
+  if (btn) btn.textContent = theme === 'light' ? '☀️' : '🌙';
+}
+function toggleTheme() {
+  applyTheme(currentTheme === 'dark' ? 'light' : 'dark');
+}
+function setDefaultViewMode(mode) {
+  defaultViewMode = mode;
+  localStorage.setItem('snagtrack_defaultView', mode);
+  // Clear per-view overrides so default applies everywhere
+  viewModes = {};
+  localStorage.setItem('snagtrack_viewModes', '{}');
+  initViewToggles();
+  refreshCurrentView();
+  // Re-open settings to update button states
+  openSettings();
+}
+function initViewToggles() {
+  ['projects', 'locations', 'snags'].forEach(function(view) {
+    var mode = getViewMode(view);
+    var toggle = document.getElementById('toggle-' + view);
+    if (toggle) { toggle.querySelectorAll('button').forEach(function(b) { b.classList.remove('active'); }); toggle.querySelector('button:' + (mode === 'card' ? 'first-child' : 'last-child')).classList.add('active'); }
+  });
+}
+
+// ── Column Order (drag to reorder table headers) ────────────
+var defaultColumns = {
+  projects: ['name','client','locations','snags','open'],
+  locations: ['name','description','snags','open'],
+  snags: ['snagId','description','discipline','status','priority','raised','photos']
+};
+var columnLabels = {
+  name:'Name', client:'Client', locations:'Locations', snags:'Snags', open:'Open',
+  description:'Description', snagId:'ID', discipline:'Discipline', status:'Status',
+  priority:'Priority', raised:'Raised', photos:'📷', closedDate:'Closed'
+};
+
+function getColumnOrder(view) {
+  try {
+    var saved = JSON.parse(localStorage.getItem('snagtrack_cols_' + view));
+    if (saved && saved.length > 0) return saved;
+  } catch(e) {}
+  return defaultColumns[view] || [];
+}
+function setColumnOrder(view, cols) {
+  localStorage.setItem('snagtrack_cols_' + view, JSON.stringify(cols));
+}
+
+function makeTableDraggable(tableEl, view) {
+  var ths = tableEl.querySelectorAll('thead th');
+  var dragIdx = null;
+  ths.forEach(function(th, i) {
+    if (i === ths.length - 1) return; // skip actions column
+    th.draggable = true;
+    th.addEventListener('dragstart', function(e) {
+      dragIdx = i;
+      e.dataTransfer.effectAllowed = 'move';
+      th.style.opacity = '0.5';
+    });
+    th.addEventListener('dragend', function() {
+      th.style.opacity = '1';
+      ths.forEach(function(t) { t.classList.remove('drag-over'); });
+    });
+    th.addEventListener('dragover', function(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      ths.forEach(function(t) { t.classList.remove('drag-over'); });
+      if (i !== dragIdx) th.classList.add('drag-over');
+    });
+    th.addEventListener('dragleave', function() { th.classList.remove('drag-over'); });
+    th.addEventListener('drop', function(e) {
+      e.preventDefault();
+      th.classList.remove('drag-over');
+      if (dragIdx === null || dragIdx === i) return;
+      var cols = getColumnOrder(view);
+      var moved = cols.splice(dragIdx, 1)[0];
+      cols.splice(i, 0, moved);
+      setColumnOrder(view, cols);
+      refreshCurrentView();
+    });
+    // Touch support for mobile drag
+    var touchStartX = 0, touchStartY = 0, touchDragEl = null;
+    th.addEventListener('touchstart', function(e) {
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+      dragIdx = i;
+    }, { passive: true });
+    th.addEventListener('touchmove', function(e) {
+      var dx = Math.abs(e.touches[0].clientX - touchStartX);
+      var dy = Math.abs(e.touches[0].clientY - touchStartY);
+      if (dx > 10 && dx > dy) e.preventDefault(); // horizontal drag
+    }, { passive: false });
+    th.addEventListener('touchend', function(e) {
+      var endX = e.changedTouches[0].clientX;
+      var target = document.elementFromPoint(endX, e.changedTouches[0].clientY);
+      if (target && target.tagName === 'TH') {
+        var dropIdx = Array.from(ths).indexOf(target);
+        if (dropIdx >= 0 && dropIdx < ths.length - 1 && dropIdx !== dragIdx) {
+          var cols = getColumnOrder(view);
+          var moved = cols.splice(dragIdx, 1)[0];
+          cols.splice(dropIdx, 0, moved);
+          setColumnOrder(view, cols);
+          refreshCurrentView();
+        }
+      }
+    });
+  });
+}
+let appSettings = { statuses: ['Open','Closed','Completed','Fixed'], priorities: ['High','Medium','Low'], disciplines: ['Architectural','Electrical','Mechanical','Plumbing','Structural','Fire','Landscaping','General'], nextSnagNumber: {} };
+
+function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+
+async function getNextSnagId(projectId) {
+  // Scan all existing snags for this project to find the highest number used.
+  // This prevents duplicates when two devices create snags offline simultaneously.
+  const project = await getById('projects', projectId);
+  const prefix = project ? project.prefix || 'SNG' : 'SNG';
+  const allSnags = await getAll('snags', function(s) { return s.projectId === projectId; });
+  var maxNum = 0;
+  var re = new RegExp('^' + prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '-(\\d+)$');
+  for (var i = 0; i < allSnags.length; i++) {
+    var match = allSnags[i].snagId ? allSnags[i].snagId.match(re) : null;
+    if (match) { var n = parseInt(match[1], 10); if (n > maxNum) maxNum = n; }
+  }
+  return prefix + '-' + String(maxNum + 1).padStart(4, '0');
+}
+
+function navigateTo(view) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + view).classList.add('active');
+  currentView = view;
+  switch(view) { case 'projects': renderProjects(); break; case 'locations': renderLocations(); break; case 'snags': renderSnags(); break; case 'snag-detail': renderSnagDetail(); break; }
+}
+
+// ── Projects ────────────────────────────────────────────────
+async function renderProjects() {
+  const projects = await getAll('projects');
+  const container = document.getElementById('projects-list');
+  if (projects.length === 0) { container.innerHTML = '<div class="empty-state"><div class="icon">📋</div><h3>No Projects Yet</h3><p>Tap the + button to create your first project.</p></div>'; return; }
+  var mode = getViewMode('projects');
+  if (mode === 'table') {
+    var cols = getColumnOrder('projects');
+    var colData = {};
+    let html = '<table class="table-view" id="tbl-projects"><thead><tr>' + cols.map(function(c) { return '<th>' + (columnLabels[c] || c) + '</th>'; }).join('') + '<th></th></tr></thead><tbody>';
+    for (const p of projects) {
+      const snags = await getAll('snags', s => s.projectId === p._id);
+      const openCount = snags.filter(s => s.status === 'Open').length;
+      const locations = await getAll('locations', l => l.projectId === p._id);
+      colData = { name: escHtml(p.name), client: '<span style="color:var(--text-secondary)">' + escHtml(p.client || '—') + '</span>', locations: locations.length, snags: snags.length, open: '<span' + (openCount > 0 ? ' style="color:var(--accent);font-weight:600"' : '') + '>' + openCount + '</span>' };
+      html += '<tr onclick="selectProject(\'' + p._id + '\')">' + cols.map(function(c) { return '<td>' + (colData[c] !== undefined ? colData[c] : '') + '</td>'; }).join('') + '<td class="tbl-actions"><button onclick="event.stopPropagation(); openProjectModal(\'' + p._id + '\')" title="Edit">✏️</button><button onclick="event.stopPropagation(); confirmDelete(\'project\',\'' + p._id + '\',\'' + escHtml(p.name).replace(/'/g, "\\'") + '\')" title="Delete">🗑</button></td></tr>';
+    }
+    html += '</tbody></table>';
+    container.innerHTML = html;
+    makeTableDraggable(document.getElementById('tbl-projects'), 'projects');
+  } else {
+    let html = '';
+    for (const p of projects) {
+      const snags = await getAll('snags', s => s.projectId === p._id);
+      const openCount = snags.filter(s => s.status === 'Open').length;
+      const locations = await getAll('locations', l => l.projectId === p._id);
+      html += '<div class="card" onclick="selectProject(\'' + p._id + '\')"><div class="card-title">' + escHtml(p.name) + '</div><div class="card-subtitle">' + escHtml(p.description || 'No description') + '</div><div class="card-meta"><span>📍 ' + locations.length + ' locations</span><span>🔧 ' + snags.length + ' snags</span>' + (openCount > 0 ? '<span style="color:var(--accent)">⚠ ' + openCount + ' open</span>' : '') + '</div><div class="card-actions"><button onclick="event.stopPropagation(); openProjectModal(\'' + p._id + '\')" title="Edit">✏️</button><button onclick="event.stopPropagation(); confirmDelete(\'project\',\'' + p._id + '\',\'' + escHtml(p.name).replace(/'/g, "\\'") + '\')" title="Delete">🗑</button></div></div>';
+    }
+    container.innerHTML = html;
+  }
+}
+
+function selectProject(id) { currentProjectId = id; navigateTo('locations'); }
+
+function openProjectModal(editId) {
+  showModal(editId ? 'Edit Project' : 'New Project', async () => {
+    const e = editId ? await getById('projects', editId) : null;
+    return '<div class="form-group"><label>Project Name</label><input type="text" id="f-project-name" value="' + (e ? escHtml(e.name) : '') + '" placeholder="e.g. Tower Block A"></div><div class="form-group"><label>Description</label><textarea id="f-project-desc" placeholder="Project description...">' + (e ? escHtml(e.description || '') : '') + '</textarea></div><div class="form-group"><label>Snag ID Prefix</label><input type="text" id="f-project-prefix" value="' + (e ? escHtml(e.prefix || 'SNG') : 'SNG') + '" placeholder="SNG" maxlength="6"></div><div class="form-group"><label>Client / Company</label><input type="text" id="f-project-client" value="' + (e ? escHtml(e.client || '') : '') + '" placeholder="Client name"></div><button class="btn btn-primary btn-full" onclick="saveProject(\'' + (editId || '') + '\')">' + (editId ? 'Update' : 'Create') + ' Project</button>';
+  });
+}
+
+async function saveProject(editId) {
+  const name = document.getElementById('f-project-name').value.trim();
+  if (!name) { showToast('Project name is required'); return; }
+  let doc = editId ? (await getById('projects', editId) || {}) : { _id: genId(), createdAt: Date.now() };
+  doc.name = name; doc.description = document.getElementById('f-project-desc').value.trim();
+  doc.prefix = document.getElementById('f-project-prefix').value.trim().toUpperCase() || 'SNG';
+  doc.client = document.getElementById('f-project-client').value.trim(); doc.updatedAt = Date.now();
+  await put('projects', doc); closeModal(); renderProjects(); showToast(editId ? 'Project updated' : 'Project created');
+}
+
+// ── Locations ───────────────────────────────────────────────
+async function renderLocations() {
+  const project = await getById('projects', currentProjectId);
+  document.getElementById('locations-title').innerHTML = project ? '<span style="color:var(--text-muted);font-weight:400">' + escHtml(project.name) + ' ›</span> Locations' : 'Locations';
+  const locations = await getAll('locations', l => l.projectId === currentProjectId);
+  const container = document.getElementById('locations-list');
+  if (locations.length === 0) { container.innerHTML = '<div class="empty-state"><div class="icon">📍</div><h3>No Locations Yet</h3><p>Add locations within this project.</p></div>'; return; }
+  var mode = getViewMode('locations');
+  if (mode === 'table') {
+    var cols = getColumnOrder('locations');
+    let html = '<table class="table-view" id="tbl-locations"><thead><tr>' + cols.map(function(c) { return '<th>' + (columnLabels[c] || c) + '</th>'; }).join('') + '<th></th></tr></thead><tbody>';
+    for (const loc of locations) {
+      const snags = await getAll('snags', s => s.locationId === loc._id);
+      const openCount = snags.filter(s => s.status === 'Open').length;
+      var colData = { name: escHtml(loc.name), description: '<span style="color:var(--text-secondary)">' + escHtml(loc.description || '—') + '</span>', snags: snags.length, open: '<span' + (openCount > 0 ? ' style="color:var(--accent);font-weight:600"' : '') + '>' + openCount + '</span>' };
+      html += '<tr onclick="selectLocation(\'' + loc._id + '\')">' + cols.map(function(c) { return '<td>' + (colData[c] !== undefined ? colData[c] : '') + '</td>'; }).join('') + '<td class="tbl-actions"><button onclick="event.stopPropagation(); openLocationModal(\'' + loc._id + '\')" title="Edit">✏️</button><button onclick="event.stopPropagation(); confirmDelete(\'location\',\'' + loc._id + '\',\'' + escHtml(loc.name).replace(/'/g, "\\'") + '\')" title="Delete">🗑</button></td></tr>';
+    }
+    html += '</tbody></table>';
+    container.innerHTML = html;
+    makeTableDraggable(document.getElementById('tbl-locations'), 'locations');
+  } else {
+    let html = '';
+    for (const loc of locations) {
+      const snags = await getAll('snags', s => s.locationId === loc._id);
+      const openCount = snags.filter(s => s.status === 'Open').length;
+      html += '<div class="card" onclick="selectLocation(\'' + loc._id + '\')"><div class="card-title">' + escHtml(loc.name) + '</div><div class="card-subtitle">' + escHtml(loc.description || 'No description') + '</div><div class="card-meta"><span>🔧 ' + snags.length + ' snags</span>' + (openCount > 0 ? '<span style="color:var(--accent)">⚠ ' + openCount + ' open</span>' : '') + '</div><div class="card-actions"><button onclick="event.stopPropagation(); openLocationModal(\'' + loc._id + '\')" title="Edit">✏️</button><button onclick="event.stopPropagation(); confirmDelete(\'location\',\'' + loc._id + '\',\'' + escHtml(loc.name).replace(/'/g, "\\'") + '\')" title="Delete">🗑</button></div></div>';
+    }
+    container.innerHTML = html;
+  }
+}
+
+function selectLocation(id) { currentLocationId = id; navigateTo('snags'); }
+
+function openLocationModal(editId) {
+  showModal(editId ? 'Edit Location' : 'New Location', async () => {
+    const e = editId ? await getById('locations', editId) : null;
+    return '<div class="form-group"><label>Location Name</label><input type="text" id="f-loc-name" value="' + (e ? escHtml(e.name) : '') + '" placeholder="e.g. Floor 3, Unit 4B"></div><div class="form-group"><label>Description</label><textarea id="f-loc-desc" placeholder="Location details...">' + (e ? escHtml(e.description || '') : '') + '</textarea></div><button class="btn btn-primary btn-full" onclick="saveLocation(\'' + (editId || '') + '\')">' + (editId ? 'Update' : 'Create') + ' Location</button>';
+  });
+}
+
+async function saveLocation(editId) {
+  const name = document.getElementById('f-loc-name').value.trim();
+  if (!name) { showToast('Location name is required'); return; }
+  let doc = editId ? (await getById('locations', editId) || {}) : { _id: genId(), projectId: currentProjectId, createdAt: Date.now() };
+  doc.name = name; doc.description = document.getElementById('f-loc-desc').value.trim(); doc.updatedAt = Date.now();
+  await put('locations', doc); closeModal(); renderLocations(); showToast(editId ? 'Location updated' : 'Location created');
+}
+
+// ── Snags ───────────────────────────────────────────────────
+async function renderSnags() {
+  const location = await getById('locations', currentLocationId);
+  const snagProject = await getById('projects', currentProjectId);
+  document.getElementById('snags-title').innerHTML = (snagProject ? '<span style="color:var(--text-muted);font-weight:400">' + escHtml(snagProject.name) + ' › </span>' : '') + (location ? escHtml(location.name) : 'Snags');
+  let snags = await getAll('snags', s => s.locationId === currentLocationId);
+  if (snagFilter.search) { const q = snagFilter.search.toLowerCase(); snags = snags.filter(s => s.snagId.toLowerCase().includes(q) || s.description.toLowerCase().includes(q)); }
+  if (snagFilter.status) snags = snags.filter(s => s.status === snagFilter.status);
+  if (snagFilter.priority) snags = snags.filter(s => s.priority === snagFilter.priority);
+  const statusSelect = document.querySelector('#view-snags .list-toolbar select:first-of-type');
+  const settings = await loadSettings();
+  statusSelect.innerHTML = '<option value="">All Status</option>' + settings.statuses.map(s => '<option value="' + s + '"' + (snagFilter.status === s ? ' selected' : '') + '>' + s + '</option>').join('');
+  const container = document.getElementById('snags-list');
+  if (snags.length === 0) { container.innerHTML = '<div class="empty-state"><div class="icon">🔧</div><h3>No Snags Found</h3><p>' + (snagFilter.search || snagFilter.status || snagFilter.priority ? 'No snags match your filters.' : 'Tap + to log your first snag.') + '</p></div>'; return; }
+  snags.sort((a, b) => b.createdAt - a.createdAt);
+  var mode = getViewMode('snags');
+  if (mode === 'table') {
+    var cols = getColumnOrder('snags');
+    let html = '<table class="table-view" id="tbl-snags"><thead><tr>' + cols.map(function(c) { return '<th>' + (columnLabels[c] || c) + '</th>'; }).join('') + '<th></th></tr></thead><tbody>';
+    for (const s of snags) {
+      const photos = await getAll('photos', p => p.snagId === s._id);
+      var colData = {
+        snagId: '<span style="font-family:var(--mono);color:var(--accent);font-size:12px;white-space:nowrap">' + escHtml(s.snagId) + '</span>',
+        description: escHtml(s.description),
+        discipline: '<span style="color:var(--text-secondary)">' + escHtml(s.discipline || '—') + '</span>',
+        status: '<span class="status-badge status-' + s.status.toLowerCase() + '">' + escHtml(s.status) + '</span>',
+        priority: '<span class="status-badge priority-' + s.priority.toLowerCase() + '">' + escHtml(s.priority) + '</span>',
+        raised: '<span style="font-size:12px;white-space:nowrap">' + new Date(s.createdAt).toLocaleDateString() + '</span>',
+        closedDate: '<span style="font-size:12px;white-space:nowrap">' + (s.closedDate ? new Date(s.closedDate).toLocaleDateString() : '—') + '</span>',
+        photos: photos.length > 0 ? photos.length : ''
+      };
+      html += '<tr onclick="selectSnag(\'' + s._id + '\')">' + cols.map(function(c) { return '<td>' + (colData[c] !== undefined ? colData[c] : '') + '</td>'; }).join('') + '<td class="tbl-actions"><button onclick="event.stopPropagation(); openSnagModal(\'' + s._id + '\')" title="Edit">✏️</button><button onclick="event.stopPropagation(); confirmDelete(\'snag\',\'' + s._id + '\',\'' + escHtml(s.snagId).replace(/'/g, "\\'") + '\')" title="Delete">🗑</button></td></tr>';
+    }
+    html += '</tbody></table>';
+    container.innerHTML = html;
+    makeTableDraggable(document.getElementById('tbl-snags'), 'snags');
+  } else {
+    let html = '';
+    for (const s of snags) {
+      const photos = await getAll('photos', p => p.snagId === s._id);
+      html += '<div class="card" onclick="selectSnag(\'' + s._id + '\')"><div class="snag-id">' + escHtml(s.snagId) + '</div><div class="card-title">' + escHtml(s.description) + '</div><div class="snag-badges"><span class="status-badge status-' + s.status.toLowerCase() + '">' + escHtml(s.status) + '</span><span class="status-badge priority-' + s.priority.toLowerCase() + '">' + escHtml(s.priority) + '</span>' + (s.discipline ? '<span class="status-badge" style="background:rgba(52,152,219,0.15);color:var(--info)">' + escHtml(s.discipline) + '</span>' : '') + (photos.length > 0 ? '<span class="status-badge" style="background:rgba(255,255,255,0.05);color:var(--text-muted)">📷 ' + photos.length + '</span>' : '') + '</div><div class="card-actions"><button onclick="event.stopPropagation(); openSnagModal(\'' + s._id + '\')" title="Edit">✏️</button><button onclick="event.stopPropagation(); confirmDelete(\'snag\',\'' + s._id + '\',\'' + escHtml(s.snagId).replace(/'/g, "\\'") + '\')" title="Delete">🗑</button></div></div>';
+    }
+    container.innerHTML = html;
+  }
+}
+
+function filterSnags(search) { snagFilter.search = search; renderSnags(); }
+function filterSnagsByStatus(status) { snagFilter.status = status; renderSnags(); }
+function filterSnagsByPriority(priority) { snagFilter.priority = priority; renderSnags(); }
+function selectSnag(id) { currentSnagId = id; navigateTo('snag-detail'); }
+
+let tempPhotos = [];
+
+function openSnagModal(editId) {
+  tempPhotos = [];
+  showModal(editId ? 'Edit Snag' : 'New Snag', async () => {
+    const existing = editId ? await getById('snags', editId) : null;
+    const settings = await loadSettings();
+    if (editId) { const ep = await getAll('photos', p => p.snagId === editId); tempPhotos = ep.map(p => ({ id: p._id, data: p.data, existing: true })); }
+    const statusOpts = settings.statuses.map(s => '<option value="' + s + '"' + (existing && existing.status === s ? ' selected' : '') + '>' + s + '</option>').join('');
+    const prioOpts = settings.priorities.map(p => '<option value="' + p + '"' + (existing && existing.priority === p ? ' selected' : '') + '>' + p + '</option>').join('');
+    const discList = settings.disciplines || appSettings.disciplines;
+    const discOpts = '<option value="">(None)</option>' + discList.map(d => '<option value="' + escHtml(d) + '"' + (existing && existing.discipline === d ? ' selected' : '') + '>' + escHtml(d) + '</option>').join('');
+    const closedVal = existing && existing.closedDate ? new Date(existing.closedDate).toISOString().split('T')[0] : '';
+    return '<div class="form-group"><label>Description</label><textarea id="f-snag-desc" placeholder="Describe the snag...">' + (existing ? escHtml(existing.description) : '') + '</textarea></div>' +
+      '<div class="form-group"><label>Discipline</label><select id="f-snag-discipline">' + discOpts + '</select></div>' +
+      '<div class="form-group"><label>Status</label><select id="f-snag-status">' + statusOpts + '</select></div>' +
+      '<div class="form-group"><label>Priority</label><select id="f-snag-priority">' + prioOpts + '</select></div>' +
+      '<div class="form-group"><label>Closed Date</label><input type="date" id="f-snag-closed" value="' + closedVal + '"></div>' +
+      '<div class="form-group"><label>Photos</label><div class="photo-upload-area" id="photo-drop-area" onclick="document.getElementById(\'photo-input\').click()"><div class="icon">📷</div><p>Tap to choose photo or drag &amp; drop</p></div><div style="display:flex;gap:8px;margin-top:8px"><button type="button" class="btn btn-sm btn-secondary" style="flex:1" onclick="document.getElementById(\'photo-camera\').click()">📷 Camera</button><button type="button" class="btn btn-sm btn-secondary" style="flex:1" onclick="document.getElementById(\'photo-input\').click()">🖼 Gallery</button></div><input type="file" id="photo-input" accept="image/*" multiple style="display:none" onchange="handlePhotoUpload(this.files)"><input type="file" id="photo-camera" accept="image/*" capture="environment" style="display:none" onchange="handlePhotoUpload(this.files)"><div class="photo-preview-grid" id="photo-preview"></div></div>' +
+      '<button class="btn btn-primary btn-full" onclick="saveSnag(\'' + (editId || '') + '\')">' + (editId ? 'Update' : 'Save') + ' Snag</button>';
+  }, () => { renderPhotoPreview(); setupDragDrop(); });
+}
+
+function setupDragDrop() {
+  const area = document.getElementById('photo-drop-area'); if (!area) return;
+  ['dragenter','dragover'].forEach(e => area.addEventListener(e, ev => { ev.preventDefault(); area.classList.add('dragover'); }));
+  ['dragleave','drop'].forEach(e => area.addEventListener(e, ev => { ev.preventDefault(); area.classList.remove('dragover'); }));
+  area.addEventListener('drop', ev => handlePhotoUpload(ev.dataTransfer.files));
+}
+
+function compressPhoto(dataUrl) {
+  return new Promise(function(resolve) {
+    var img = new Image();
+    img.onload = function() {
+      var canvas = document.createElement('canvas');
+      var maxW = 1600, maxH = 1600;
+      var w = img.width, h = img.height;
+      if (w > maxW || h > maxH) {
+        var scale = Math.min(maxW / w, maxH / h);
+        w = Math.round(w * scale); h = Math.round(h * scale);
+      }
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL('image/jpeg', 0.7));
+    };
+    img.src = dataUrl;
+  });
+}
+
+function handlePhotoUpload(files) {
+  Array.from(files).forEach(file => {
+    if (!file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+      var compressed = await compressPhoto(e.target.result);
+      tempPhotos.push({ id: genId(), data: compressed, existing: false });
+      renderPhotoPreview();
+      // Auto-save to device gallery/downloads if enabled
+      if (autoSavePhotos) {
+        savePhotoToDevice(compressed, 'site_inspector_' + Date.now() + '.jpg');
+      }
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function renderPhotoPreview() {
+  const c = document.getElementById('photo-preview'); if (!c) return;
+  c.innerHTML = tempPhotos.map((p, i) => '<div class="photo-thumb"><img src="' + p.data + '" alt="Photo ' + (i+1) + '"><button class="remove-photo" onclick="removeTempPhoto(' + i + ')">✕</button></div>').join('');
+}
+
+function removeTempPhoto(i) { tempPhotos.splice(i, 1); renderPhotoPreview(); }
+
+async function saveSnag(editId) {
+  const desc = document.getElementById('f-snag-desc').value.trim();
+  if (!desc) { showToast('Description is required'); return; }
+  let doc;
+  if (editId) { doc = await getById('snags', editId) || {}; }
+  else { const snagId = await getNextSnagId(currentProjectId); doc = { _id: genId(), snagId: snagId, projectId: currentProjectId, locationId: currentLocationId, createdAt: Date.now() }; }
+  doc.description = desc; doc.status = document.getElementById('f-snag-status').value;
+  doc.priority = document.getElementById('f-snag-priority').value;
+  doc.discipline = document.getElementById('f-snag-discipline').value || '';
+  var closedInput = document.getElementById('f-snag-closed').value;
+  doc.closedDate = closedInput ? new Date(closedInput).getTime() : null;
+  doc.updatedAt = Date.now();
+  await put('snags', doc);
+  if (editId) { const old = await getAll('photos', p => p.snagId === editId); const keepIds = tempPhotos.filter(p => p.existing).map(p => p.id); for (const o of old) { if (!keepIds.includes(o._id)) await removeDoc('photos', o._id); } }
+  for (const photo of tempPhotos) { if (!photo.existing) await put('photos', { _id: photo.id, snagId: doc._id, data: photo.data, createdAt: Date.now() }); }
+  closeModal(); renderSnags(); showToast(editId ? 'Snag updated' : 'Snag saved');
+}
+
+// ── Snag Detail ─────────────────────────────────────────────
+async function renderSnagDetail() {
+  const snag = await getById('snags', currentSnagId); if (!snag) return;
+  document.getElementById('snag-detail-title').textContent = snag.snagId;
+  const photos = await getAll('photos', p => p.snagId === currentSnagId);
+  const comments = await getAll('comments', c => c.snagId === currentSnagId);
+  comments.sort((a, b) => a.createdAt - b.createdAt);
+  const location = await getById('locations', snag.locationId);
+  const project = await getById('projects', snag.projectId);
+  const photoDataJSON = JSON.stringify(photos.map(x => x.data)).replace(/"/g, '&quot;');
+  document.getElementById('snag-detail-content').innerHTML =
+    '<div class="snag-detail-header"><div class="snag-id">' + escHtml(snag.snagId) + '</div><div class="snag-desc">' + escHtml(snag.description) + '</div><div class="snag-badges"><span class="status-badge status-' + snag.status.toLowerCase() + '">' + escHtml(snag.status) + '</span><span class="status-badge priority-' + snag.priority.toLowerCase() + '">' + escHtml(snag.priority) + '</span>' + (snag.discipline ? '<span class="status-badge" style="background:rgba(52,152,219,0.15);color:var(--info)">' + escHtml(snag.discipline) + '</span>' : '') + '</div><div class="card-meta" style="margin-top:12px"><span>📋 ' + escHtml(project ? project.name : '') + '</span><span>📍 ' + escHtml(location ? location.name : '') + '</span><span>📅 Raised: ' + new Date(snag.createdAt).toLocaleDateString() + '</span>' + (snag.closedDate ? '<span>✅ Closed: ' + new Date(snag.closedDate).toLocaleDateString() + '</span>' : '') + '</div></div>' +
+    (photos.length > 0 ? '<div class="snag-photos-grid">' + photos.map((p, i) => '<div class="snag-photo" onclick="openLightbox(' + photoDataJSON + ', ' + i + ')"><img src="' + p.data + '" alt="Photo ' + (i+1) + '" loading="lazy"></div>').join('') + '</div>' : '') +
+    '<div class="comments-section"><h3>Comments (' + comments.length + ')</h3>' + comments.map(c => '<div class="comment-item"><div class="comment-text">' + escHtml(c.text) + '</div><div class="comment-date">' + new Date(c.createdAt).toLocaleString() + '</div></div>').join('') + '<div class="comment-input-row"><input type="text" id="comment-input" placeholder="Add a comment..." onkeydown="if(event.key===\'Enter\')addComment()"><button class="btn btn-primary btn-sm" onclick="addComment()">Send</button></div></div>';
+}
+
+async function addComment() {
+  const input = document.getElementById('comment-input'); const text = input.value.trim(); if (!text) return;
+  await put('comments', { _id: genId(), snagId: currentSnagId, text: text, createdAt: Date.now() });
+  input.value = ''; renderSnagDetail();
+}
+
+function editCurrentSnag() { openSnagModal(currentSnagId); }
+
+// ── Lightbox ────────────────────────────────────────────────
+function openLightbox(photos, index) { lightboxPhotos = photos; lightboxIndex = index; document.getElementById('lightbox-img').src = photos[index]; document.getElementById('lightbox').classList.add('active'); }
+function closeLightbox() { document.getElementById('lightbox').classList.remove('active'); }
+function navigateLightbox(dir) { lightboxIndex = (lightboxIndex + dir + lightboxPhotos.length) % lightboxPhotos.length; document.getElementById('lightbox-img').src = lightboxPhotos[lightboxIndex]; }
+
+function savePhotoToDevice(dataUrl, filename) {
+  var link = document.createElement('a');
+  link.href = dataUrl;
+  link.download = filename || 'photo_' + Date.now() + '.jpg';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+function saveLightboxPhoto() {
+  if (lightboxPhotos.length === 0) return;
+  savePhotoToDevice(lightboxPhotos[lightboxIndex], 'site_inspector_photo_' + (lightboxIndex + 1) + '.jpg');
+  showToast('Photo saved to device');
+}
+
+var autoSavePhotos = localStorage.getItem('snagtrack_autoSavePhotos') === 'true';
+function setAutoSavePhotos(val) {
+  autoSavePhotos = val;
+  localStorage.setItem('snagtrack_autoSavePhotos', val ? 'true' : 'false');
+}
+
+// ── Export ──────────────────────────────────────────────────
+function openExportModal() {
+  showModal('Export Snag Report', async () => {
+    var settings = await loadSettings();
+    var locations = await getAll('locations', function(l) { return l.projectId === currentProjectId; });
+    var snags = await getAll('snags', function(s) { return s.projectId === currentProjectId; });
+    // Get unique disciplines from actual snag data
+    var usedDisc = {}; snags.forEach(function(s) { if (s.discipline) usedDisc[s.discipline] = true; });
+    var discList = Object.keys(usedDisc).sort();
+
+    var filterHtml = '<h3 style="font-size:13px;font-weight:600;color:var(--text-secondary);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px">Filters</h3>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">' +
+      '<div class="form-group" style="margin:0"><label style="font-size:12px">Status</label><select id="exp-filter-status" style="font-size:13px"><option value="">All</option>' + settings.statuses.map(function(s) { return '<option value="' + escHtml(s) + '">' + escHtml(s) + '</option>'; }).join('') + '</select></div>' +
+      '<div class="form-group" style="margin:0"><label style="font-size:12px">Priority</label><select id="exp-filter-priority" style="font-size:13px"><option value="">All</option>' + settings.priorities.map(function(p) { return '<option value="' + escHtml(p) + '">' + escHtml(p) + '</option>'; }).join('') + '</select></div>' +
+      '<div class="form-group" style="margin:0"><label style="font-size:12px">Discipline</label><select id="exp-filter-discipline" style="font-size:13px"><option value="">All</option>' + discList.map(function(d) { return '<option value="' + escHtml(d) + '">' + escHtml(d) + '</option>'; }).join('') + '</select></div>' +
+      '<div class="form-group" style="margin:0"><label style="font-size:12px">Location</label><select id="exp-filter-location" style="font-size:13px"><option value="">All</option>' + locations.map(function(l) { return '<option value="' + l._id + '">' + escHtml(l.name) + '</option>'; }).join('') + '</select></div>' +
+      '</div>';
+
+    return filterHtml + '<h3 style="font-size:13px;font-weight:600;color:var(--text-secondary);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px">Fields to include</h3><div class="export-option"><input type="checkbox" id="exp-snagId" checked><label for="exp-snagId">Snag ID</label></div><div class="export-option"><input type="checkbox" id="exp-location" checked><label for="exp-location">Location</label></div><div class="export-option"><input type="checkbox" id="exp-description" checked><label for="exp-description">Description</label></div><div class="export-option"><input type="checkbox" id="exp-discipline" checked><label for="exp-discipline">Discipline</label></div><div class="export-option"><input type="checkbox" id="exp-status" checked><label for="exp-status">Status</label></div><div class="export-option"><input type="checkbox" id="exp-priority" checked><label for="exp-priority">Priority</label></div><div class="export-option"><input type="checkbox" id="exp-raisedDate" checked><label for="exp-raisedDate">Raised Date</label></div><div class="export-option"><input type="checkbox" id="exp-closedDate" checked><label for="exp-closedDate">Closed Date</label></div><div class="export-option"><input type="checkbox" id="exp-comments" checked><label for="exp-comments">Comments</label></div><div class="export-option"><input type="checkbox" id="exp-photos" checked><label for="exp-photos">Photos</label></div><h3 style="font-size:13px;font-weight:600;color:var(--text-secondary);margin:16px 0 8px;text-transform:uppercase;letter-spacing:0.5px">Image Quality</h3><div class="quality-slider"><label style="font-size:13px;min-width:70px">Compression</label><input type="range" id="exp-quality" min="10" max="100" value="60" oninput="document.getElementById(\'quality-val\').textContent=this.value+\'%\'"><span class="quality-value" id="quality-val">60%</span></div><div class="quality-slider"><label style="font-size:13px;min-width:70px">Print Size</label><input type="range" id="exp-maxwidth" min="200" max="1200" value="600" step="100" oninput="document.getElementById(\'width-val\').textContent=this.value+\'px\'"><span class="quality-value" id="width-val">600px</span></div><div class="export-progress" id="export-progress"><span id="export-status-text" style="font-size:13px;color:var(--text-secondary)">Preparing...</span><div class="progress-bar"><div class="progress-bar-fill" id="export-progress-bar"></div></div></div><div style="display:flex;gap:8px;margin-top:16px"><button class="btn btn-primary" style="flex:1" onclick="exportToExcel()">📊 Excel</button><button class="btn btn-primary" style="flex:1" onclick="exportToPDF()">📄 PDF</button></div>';
+  });
+}
+
+function getExportFields() { return ['snagId','location','description','discipline','status','priority','raisedDate','closedDate','comments','photos'].filter(f => { const el = document.getElementById('exp-' + f); return el && el.checked; }); }
+
+async function getExportData() {
+  var filterStatus = document.getElementById('exp-filter-status').value;
+  var filterPriority = document.getElementById('exp-filter-priority').value;
+  var filterDisc = document.getElementById('exp-filter-discipline').value;
+  var filterLoc = document.getElementById('exp-filter-location').value;
+
+  var snags = await getAll('snags', function(s) {
+    if (s.projectId !== currentProjectId) return false;
+    if (filterStatus && s.status !== filterStatus) return false;
+    if (filterPriority && s.priority !== filterPriority) return false;
+    if (filterDisc && (s.discipline || '') !== filterDisc) return false;
+    if (filterLoc && s.locationId !== filterLoc) return false;
+    return true;
+  });
+  const locations = await getAll('locations', l => l.projectId === currentProjectId);
+  const locMap = {}; locations.forEach(l => locMap[l._id] = l.name);
+  const result = [];
+  for (const s of snags) {
+    const photos = await getAll('photos', p => p.snagId === s._id);
+    const comments = await getAll('comments', c => c.snagId === s._id);
+    comments.sort((a, b) => a.createdAt - b.createdAt);
+    result.push({ snagId: s.snagId, location: locMap[s.locationId] || '', description: s.description, discipline: s.discipline || '', status: s.status, priority: s.priority, raisedDate: new Date(s.createdAt).toLocaleDateString(), closedDate: s.closedDate ? new Date(s.closedDate).toLocaleDateString() : '', comments: comments.map(c => c.text).join(' | '), photos: photos.map(p => p.data) });
+  }
+  return result;
+}
+
+function resizeImage(dataUrl, quality) { return new Promise(resolve => { const img = new Image(); img.onload = () => { const canvas = document.createElement('canvas'); canvas.width = img.width; canvas.height = img.height; canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height); resolve(canvas.toDataURL('image/jpeg', quality / 100)); }; img.src = dataUrl; }); }
+function showExportProgress(show) { document.getElementById('export-progress').classList.toggle('active', show); }
+function updateExportProgress(pct, text) { document.getElementById('export-progress-bar').style.width = pct + '%'; document.getElementById('export-status-text').textContent = text; }
+
+async function exportToExcel() {
+  try { const fields = getExportFields(); if (fields.length === 0) { showToast('Select at least one field'); return; } showExportProgress(true); updateExportProgress(20, 'Gathering data...'); const data = await getExportData(); const project = await getById('projects', currentProjectId); updateExportProgress(50, 'Building spreadsheet...'); const fl = { snagId:'Snag ID', location:'Location', description:'Description', discipline:'Discipline', status:'Status', priority:'Priority', raisedDate:'Raised Date', closedDate:'Closed Date', comments:'Comments', photos:'Photos (Count)' }; const headers = fields.map(f => fl[f]); const rows = data.map(d => fields.map(f => f === 'photos' ? d.photos.length + ' photo(s)' : d[f])); const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]); ws['!cols'] = headers.map((h, i) => ({ wch: Math.min(Math.max(h.length, ...rows.map(r => String(r[i]).length)) + 2, 60) })); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Snag Report'); updateExportProgress(90, 'Saving...'); XLSX.writeFile(wb, project.name.replace(/[^a-zA-Z0-9]/g, '_') + '_Snags.xlsx'); updateExportProgress(100, 'Done!'); setTimeout(() => showExportProgress(false), 1500); showToast('Excel exported'); }
+  catch(e) { console.error(e); showToast('Export failed: ' + e.message); showExportProgress(false); }
+}
+
+async function exportToPDF() {
+  try {
+    const fields = getExportFields();
+    if (fields.length === 0) { showToast('Select at least one field'); return; }
+    const quality = parseInt(document.getElementById('exp-quality').value);
+    const maxWidth = parseInt(document.getElementById('exp-maxwidth').value);
+    const includePhotos = fields.includes('photos');
+    showExportProgress(true);
+    updateExportProgress(10, 'Gathering data...');
+    const data = await getExportData();
+    const project = await getById('projects', currentProjectId);
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF('p', 'mm', 'a4');
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 14;
+    const contentWidth = pageWidth - margin * 2;
+    const bottomMargin = 15;
+    const usableHeight = pageHeight - bottomMargin;
+
+    // ── Cover Page ──
+    var settings = await loadSettings();
+    var coverY = 30;
+
+    // Company logo — top right, 1/5th page width
+    if (settings.companyLogo) {
+      try {
+        var logoMaxW = pageWidth / 5;
+        var logoImg = new Image();
+        await new Promise(function(resolve, reject) { logoImg.onload = resolve; logoImg.onerror = reject; logoImg.src = settings.companyLogo; });
+        var logoAspect = logoImg.width / logoImg.height;
+        var logoW = logoMaxW;
+        var logoH = logoW / logoAspect;
+        // Cap height so it doesn't dominate the page
+        if (logoH > 25) { logoH = 25; logoW = logoH * logoAspect; }
+        var logoX = pageWidth - margin - logoW;
+        doc.addImage(settings.companyLogo, 'PNG', logoX, margin, logoW, logoH);
+      } catch(e) { console.warn('Logo error:', e); }
+    }
+
+    // Company name
+    if (settings.companyName) {
+      doc.setFontSize(10); doc.setFont(undefined, 'bold'); doc.setTextColor(100);
+      doc.text(settings.companyName, margin, coverY);
+      coverY += 5;
+      doc.setFont(undefined, 'normal');
+      if (settings.companyAddress) {
+        var addrLines = settings.companyAddress.split('\n');
+        doc.setFontSize(8);
+        addrLines.forEach(function(line) { doc.text(line.trim(), margin, coverY); coverY += 4; });
+      }
+      if (settings.companyPhone) { doc.setFontSize(8); doc.text('Tel: ' + settings.companyPhone, margin, coverY); coverY += 4; }
+      if (settings.companyEmail) { doc.setFontSize(8); doc.text(settings.companyEmail, margin, coverY); coverY += 4; }
+      coverY += 6;
+    }
+
+    doc.setTextColor(0);
+    doc.setFontSize(24); doc.setFont(undefined, 'bold');
+    doc.text(project.name, margin, coverY);
+    coverY += 10;
+    doc.setFontSize(12); doc.setFont(undefined, 'normal'); doc.setTextColor(100);
+    doc.text('Snag / Punchlist Report', margin, coverY); coverY += 8;
+    doc.text('Generated: ' + new Date().toLocaleDateString(), margin, coverY); coverY += 8;
+    if (project.client) { doc.text('Client: ' + project.client, margin, coverY); coverY += 8; }
+    if (settings.inspectorName) { doc.text('Inspector: ' + settings.inspectorName, margin, coverY); coverY += 8; }
+    doc.text('Total Snags: ' + data.length, margin, coverY); coverY += 8;
+    const openCount = data.filter(function(d) { return d.status === 'Open'; }).length;
+    doc.text('Open: ' + openCount + ' | Resolved: ' + (data.length - openCount), margin, coverY);
+    doc.setTextColor(0);
+
+    // ── Summary Table ──
+    const tableFields = fields.filter(function(f) { return f !== 'photos'; });
+    if (tableFields.length > 0) {
+      const fl = { snagId:'Snag ID', location:'Location', description:'Description', discipline:'Discipline', status:'Status', priority:'Priority', raisedDate:'Raised Date', closedDate:'Closed Date', comments:'Comments' };
+      updateExportProgress(30, 'Building table...');
+      doc.addPage();
+      doc.setFontSize(16); doc.setFont(undefined, 'bold');
+      doc.text('Snag Summary', margin, 20);
+      doc.autoTable({
+        head: [tableFields.map(function(f) { return fl[f]; })],
+        body: data.map(function(d) { return tableFields.map(function(f) { return d[f]; }); }),
+        startY: 28, margin: { left: margin, right: margin },
+        styles: { fontSize: 8, cellPadding: 3 },
+        headStyles: { fillColor: [233, 69, 96], textColor: 255, fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [245, 245, 250] }
+      });
+    }
+
+    // ── Snag Detail Pages (details + photos together) ──
+    if (includePhotos) {
+      var totalPhotos = data.reduce(function(sum, d) { return sum + d.photos.length; }, 0);
+      var processedPhotos = 0;
+
+      for (var si = 0; si < data.length; si++) {
+        var snag = data[si];
+        if (snag.photos.length === 0) continue;
+
+        doc.addPage();
+        var y = margin;
+
+        // Snag header info
+        doc.setFontSize(13); doc.setFont(undefined, 'bold'); doc.setTextColor(233, 69, 96);
+        doc.text(snag.snagId, margin, y); y += 6;
+        doc.setFontSize(12); doc.setTextColor(0);
+        var descLines = doc.splitTextToSize(snag.description, contentWidth);
+        doc.text(descLines, margin, y); y += descLines.length * 5 + 3;
+        doc.setFontSize(9); doc.setFont(undefined, 'normal'); doc.setTextColor(100);
+        doc.text('Location: ' + snag.location + '    Status: ' + snag.status + '    Priority: ' + snag.priority + (snag.discipline ? '    Discipline: ' + snag.discipline : ''), margin, y);
+        y += 5;
+        doc.text('Raised: ' + snag.raisedDate + (snag.closedDate ? '    Closed: ' + snag.closedDate : ''), margin, y);
+        y += 5;
+        if (snag.comments) {
+          var commentLines = doc.splitTextToSize('Comments: ' + snag.comments, contentWidth);
+          if (commentLines.length > 3) commentLines = commentLines.slice(0, 3);
+          doc.text(commentLines, margin, y);
+          y += commentLines.length * 4 + 2;
+        }
+        doc.setTextColor(0);
+        y += 4;
+
+        // Draw a thin separator line
+        doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.3);
+        doc.line(margin, y, pageWidth - margin, y); y += 5;
+
+        var headerHeight = y; // remember where header ends for this snag
+
+        // Pre-process all photos for this snag
+        var photos = snag.photos;
+        var processedImages = [];
+        for (var pi = 0; pi < photos.length; pi++) {
+          processedPhotos++;
+          updateExportProgress(40 + Math.round((processedPhotos / totalPhotos) * 55), 'Photo ' + processedPhotos + '/' + totalPhotos);
+          try {
+            var resized = await resizeImage(photos[pi], quality);
+            processedImages.push(resized);
+          } catch(e) { console.warn('Image failed', e); }
+        }
+
+        if (processedImages.length === 0) continue;
+
+        // Determine grid layout: columns based on photo count
+        var cols;
+        if (processedImages.length === 1) cols = 1;
+        else if (processedImages.length <= 4) cols = 2;
+        else cols = 3;
+
+        var gap = 4; // mm gap between photos
+        var cellW = (contentWidth - gap * (cols - 1)) / cols;
+        var cellH = cellW * 0.75; // 4:3 aspect ratio cells
+
+        // Place photos in grid
+        var col = 0;
+        for (var gi = 0; gi < processedImages.length; gi++) {
+          // Check if this row fits on the current page
+          var spaceLeft = usableHeight - y;
+          if (spaceLeft < cellH + 5) {
+            doc.addPage();
+            y = margin;
+            doc.setFontSize(10); doc.setFont(undefined, 'bold'); doc.setTextColor(150);
+            doc.text(snag.snagId + ' (continued)', margin, y);
+            doc.setTextColor(0); doc.setFont(undefined, 'normal');
+            y += 7;
+            col = 0;
+          }
+
+          var cellX = margin + col * (cellW + gap);
+
+          // Fit image within cell preserving aspect ratio
+          var imgProps = doc.getImageProperties(processedImages[gi]);
+          var imgAspect = imgProps.width / imgProps.height;
+          var cellAspect = cellW / cellH;
+          var drawW, drawH, drawX, drawY;
+
+          if (imgAspect > cellAspect) {
+            // Image is wider than cell — fit to width
+            drawW = cellW;
+            drawH = cellW / imgAspect;
+            drawX = cellX;
+            drawY = y + (cellH - drawH) / 2;
+          } else {
+            // Image is taller than cell — fit to height
+            drawH = cellH;
+            drawW = cellH * imgAspect;
+            drawX = cellX + (cellW - drawW) / 2;
+            drawY = y;
+          }
+
+          doc.addImage(processedImages[gi], 'JPEG', drawX, drawY, drawW, drawH);
+
+          col++;
+          if (col >= cols) {
+            col = 0;
+            y += cellH + gap;
+          }
+        }
+        // If last row wasn't full, still advance y
+        if (col > 0) y += cellH + gap;
+      }
+    }
+
+    updateExportProgress(98, 'Saving PDF...');
+    doc.save(project.name.replace(/[^a-zA-Z0-9]/g, '_') + '_Snags.pdf');
+    updateExportProgress(100, 'Done!');
+    setTimeout(function() { showExportProgress(false); }, 1500);
+    showToast('PDF exported');
+  } catch(e) { console.error(e); showToast('Export failed: ' + e.message); showExportProgress(false); }
+}
+
+// ── Settings ────────────────────────────────────────────────
+async function loadSettings() {
+  const doc = await getById('settings', 'appSettings');
+  if (doc) { appSettings = doc; return appSettings; }
+  const defaults = { _id: 'appSettings', statuses: ['Open','Closed','Completed','Fixed'], priorities: ['High','Medium','Low'], disciplines: ['Architectural','Electrical','Mechanical','Plumbing','Structural','Fire','Landscaping','General'], nextSnagNumber: {} };
+  await put('settings', defaults); appSettings = defaults; return appSettings;
+}
+
+function openSettings() {
+  showModal('Settings', async () => {
+    const settings = await loadSettings();
+    var cfg = getSyncConfig();
+    return '<h3 style="font-size:13px;font-weight:600;color:var(--text-secondary);margin-bottom:12px;text-transform:uppercase;letter-spacing:0.5px">Account</h3>' +
+      (currentUser && currentUser.name
+        ? '<div style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--bg-elevated);border-radius:var(--radius-sm);margin-bottom:12px"><div style="width:36px;height:36px;background:var(--accent);border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:16px">' + escHtml(currentUser.name.charAt(0).toUpperCase()) + '</div><div style="flex:1"><div style="font-weight:600">' + escHtml(currentUser.name) + '</div><div style="font-size:11px;color:var(--text-muted)">' + escHtml(currentUser.serverUrl || 'Offline mode') + '</div></div></div>' +
+          '<div style="display:flex;gap:8px;margin-bottom:20px"><button class="btn btn-secondary btn-sm" style="flex:1" onclick="forceSync()">🔄 Sync Now</button><button class="btn btn-danger btn-sm" onclick="logout()">Sign Out</button></div>'
+        : '<div style="padding:12px;background:var(--bg-elevated);border-radius:var(--radius-sm);margin-bottom:12px;font-size:13px;color:var(--text-secondary)">Using offline mode (no account)</div><button class="btn btn-secondary btn-sm btn-full" style="margin-bottom:20px" onclick="closeModal();logout()">Sign In</button>'
+      ) +
+      '<h3 style="font-size:13px;font-weight:600;color:var(--text-secondary);margin:20px 0 12px;text-transform:uppercase;letter-spacing:0.5px">Company Details</h3>' +
+      '<div class="form-group"><label>Company Name</label><input type="text" id="f-company-name" value="' + escHtml(settings.companyName || '') + '" placeholder="e.g. ABC Construction Ltd"></div>' +
+      '<div class="form-group"><label>Company Address</label><textarea id="f-company-address" placeholder="Street, City, Postcode" rows="2">' + escHtml(settings.companyAddress || '') + '</textarea></div>' +
+      '<div class="form-group"><label>Phone</label><input type="tel" id="f-company-phone" value="' + escHtml(settings.companyPhone || '') + '" placeholder="+27 12 345 6789"></div>' +
+      '<div class="form-group"><label>Email</label><input type="email" id="f-company-email" value="' + escHtml(settings.companyEmail || '') + '" placeholder="info@company.com"></div>' +
+      '<div class="form-group"><label>Inspector / Engineer</label><input type="text" id="f-inspector-name" value="' + escHtml(settings.inspectorName || '') + '" placeholder="e.g. John Smith, Pr.Eng"></div>' +
+      '<div class="form-group"><label>Company Logo</label>' +
+      (settings.companyLogo
+        ? '<div style="display:flex;align-items:center;gap:12px;margin-bottom:8px"><img src="' + settings.companyLogo + '" style="max-height:60px;max-width:120px;border-radius:var(--radius-sm);border:1px solid var(--border)"><button class="btn btn-sm btn-danger" onclick="removeCompanyLogo()">Remove</button></div>'
+        : '') +
+      '<div class="photo-upload-area" onclick="document.getElementById(\'logo-input\').click()" style="padding:12px;cursor:pointer"><div class="icon" style="font-size:20px">🖼</div><p style="font-size:12px">' + (settings.companyLogo ? 'Change logo' : 'Upload logo') + '</p></div>' +
+      '<input type="file" id="logo-input" accept="image/*" style="display:none" onchange="handleLogoUpload(this.files)">' +
+      '</div>' +
+      '<button class="btn btn-primary btn-full" style="margin-bottom:20px" onclick="saveCompanyDetails()">Save Company Details</button>' +
+      '<h3 style="font-size:13px;font-weight:600;color:var(--text-secondary);margin-bottom:12px;text-transform:uppercase;letter-spacing:0.5px">Status Options</h3><div class="tag-list" id="status-tags">' + settings.statuses.map(s => '<div class="tag">' + escHtml(s) + '<button class="remove-tag" onclick="removeStatus(\'' + escHtml(s) + '\')">✕</button></div>').join('') + '</div><div class="add-tag-row"><input type="text" id="new-status" placeholder="Add new status..."><button class="btn btn-sm btn-secondary" onclick="addStatus()">Add</button></div>' +
+      '<h3 style="font-size:13px;font-weight:600;color:var(--text-secondary);margin:20px 0 12px;text-transform:uppercase;letter-spacing:0.5px">Theme</h3><div style="display:flex;gap:8px;margin-bottom:16px"><button class="btn btn-sm ' + (currentTheme === 'dark' ? 'btn-primary' : 'btn-secondary') + '" onclick="applyTheme(\'dark\')">🌙 Dark</button><button class="btn btn-sm ' + (currentTheme === 'light' ? 'btn-primary' : 'btn-secondary') + '" onclick="applyTheme(\'light\')">☀️ Light</button></div>' +
+      '<h3 style="font-size:13px;font-weight:600;color:var(--text-secondary);margin:20px 0 12px;text-transform:uppercase;letter-spacing:0.5px">Default View</h3><div style="display:flex;gap:8px;margin-bottom:16px"><button class="btn btn-sm ' + (defaultViewMode === 'card' ? 'btn-primary' : 'btn-secondary') + '" onclick="setDefaultViewMode(\'card\')">▦ Cards</button><button class="btn btn-sm ' + (defaultViewMode === 'table' ? 'btn-primary' : 'btn-secondary') + '" onclick="setDefaultViewMode(\'table\')">☰ Table</button></div>' +
+      '<h3 style="font-size:13px;font-weight:600;color:var(--text-secondary);margin:20px 0 12px;text-transform:uppercase;letter-spacing:0.5px">Text Size</h3><div style="display:flex;gap:8px;margin-bottom:16px"><button class="btn btn-sm ' + (textSize === 'sm' ? 'btn-primary' : 'btn-secondary') + '" onclick="setTextSize(\'sm\')">Small</button><button class="btn btn-sm ' + (textSize === 'md' ? 'btn-primary' : 'btn-secondary') + '" onclick="setTextSize(\'md\')">Medium</button><button class="btn btn-sm ' + (textSize === 'lg' ? 'btn-primary' : 'btn-secondary') + '" onclick="setTextSize(\'lg\')">Large</button></div>' +
+      '<h3 style="font-size:13px;font-weight:600;color:var(--text-secondary);margin:20px 0 12px;text-transform:uppercase;letter-spacing:0.5px">Discipline Options</h3><div class="tag-list" id="discipline-tags">' + (settings.disciplines || []).map(d => '<div class="tag">' + escHtml(d) + '<button class="remove-tag" onclick="removeDiscipline(\'' + escHtml(d).replace(/'/g, "\\'") + '\')">✕</button></div>').join('') + '</div><div class="add-tag-row"><input type="text" id="new-discipline" placeholder="Add new discipline..."><button class="btn btn-sm btn-secondary" onclick="addDiscipline()">Add</button></div>' +
+      '<h3 style="font-size:13px;font-weight:600;color:var(--text-secondary);margin:20px 0 12px;text-transform:uppercase;letter-spacing:0.5px">Photos</h3><div class="export-option"><input type="checkbox" id="f-auto-save-photos"' + (autoSavePhotos ? ' checked' : '') + ' onchange="setAutoSavePhotos(this.checked)"><label for="f-auto-save-photos">Auto-save photos to device</label></div><p style="font-size:11px;color:var(--text-muted);margin:-4px 0 8px 0;line-height:1.4;padding:0 12px">When enabled, photos taken or uploaded will also be downloaded to your device. You can always save individual photos from the lightbox using the 💾 button.</p>' +
+      '<h3 style="font-size:13px;font-weight:600;color:var(--text-secondary);margin:20px 0 12px;text-transform:uppercase;letter-spacing:0.5px">Danger Zone</h3><button class="btn btn-danger btn-full" onclick="confirmClearData()">Clear All Local Data</button>' +
+      '<p style="text-align:center;color:var(--text-muted);font-size:11px;font-family:var(--mono);margin-top:24px">Site Inspector Pro v0.6</p>';
+  });
+}
+
+// Sync settings are now managed via login credentials
+
+async function addStatus() { const input = document.getElementById('new-status'); const val = input.value.trim(); if (!val) return; if (appSettings.statuses.includes(val)) { showToast('Already exists'); return; } appSettings.statuses.push(val); await put('settings', appSettings); openSettings(); }
+async function removeStatus(status) { if (appSettings.statuses.length <= 1) { showToast('Need at least one'); return; } appSettings.statuses = appSettings.statuses.filter(s => s !== status); await put('settings', appSettings); openSettings(); }
+async function addDiscipline() { const input = document.getElementById('new-discipline'); const val = input.value.trim(); if (!val) return; if (!appSettings.disciplines) appSettings.disciplines = []; if (appSettings.disciplines.includes(val)) { showToast('Already exists'); return; } appSettings.disciplines.push(val); await put('settings', appSettings); openSettings(); }
+async function removeDiscipline(disc) { if (!appSettings.disciplines) return; appSettings.disciplines = appSettings.disciplines.filter(d => d !== disc); await put('settings', appSettings); openSettings(); }
+
+var pendingLogo = null;
+function handleLogoUpload(files) {
+  if (!files || !files[0]) return;
+  var file = files[0];
+  if (!file.type.startsWith('image/')) { showToast('Please select an image file'); return; }
+  var reader = new FileReader();
+  reader.onload = async function(e) {
+    // Compress and scale logo to max 400px wide for storage efficiency
+    var img = new Image();
+    img.onload = function() {
+      var canvas = document.createElement('canvas');
+      var maxW = 400;
+      var w = img.width, h = img.height;
+      if (w > maxW) { h = Math.round(h * (maxW / w)); w = maxW; }
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      pendingLogo = canvas.toDataURL('image/png');
+      showToast('Logo loaded — tap Save Company Details');
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+async function removeCompanyLogo() {
+  appSettings.companyLogo = '';
+  pendingLogo = null;
+  await put('settings', appSettings);
+  openSettings();
+  showToast('Logo removed');
+}
+
+async function saveCompanyDetails() {
+  appSettings.companyName = document.getElementById('f-company-name').value.trim();
+  appSettings.companyAddress = document.getElementById('f-company-address').value.trim();
+  appSettings.companyPhone = document.getElementById('f-company-phone').value.trim();
+  appSettings.companyEmail = document.getElementById('f-company-email').value.trim();
+  appSettings.inspectorName = document.getElementById('f-inspector-name').value.trim();
+  if (pendingLogo) { appSettings.companyLogo = pendingLogo; pendingLogo = null; }
+  await put('settings', appSettings);
+  openSettings();
+  showToast('Company details saved');
+}
+function confirmClearData() { if (!confirm('Delete ALL local data? You will be signed out.')) return; stopSync(); stopChangeListeners(); stopPoll(); clearStoredSession(); Promise.all(Object.values(localDBs).map(d => d.destroy())).then(() => location.reload()); }
+
+// ── Delete ──────────────────────────────────────────────────
+async function confirmDelete(type, id, name) {
+  if (!confirm('Delete "' + name + '"?')) return;
+  if (type === 'project') {
+    const locs = await getAll('locations', l => l.projectId === id);
+    for (const loc of locs) { const snags = await getAll('snags', s => s.locationId === loc._id); for (const s of snags) { const photos = await getAll('photos', p => p.snagId === s._id); for (const p of photos) await removeDoc('photos', p._id); const cmts = await getAll('comments', c => c.snagId === s._id); for (const c of cmts) await removeDoc('comments', c._id); await removeDoc('snags', s._id); } await removeDoc('locations', loc._id); }
+    await removeDoc('projects', id); renderProjects();
+  } else if (type === 'location') {
+    const snags = await getAll('snags', s => s.locationId === id); for (const s of snags) { const photos = await getAll('photos', p => p.snagId === s._id); for (const p of photos) await removeDoc('photos', p._id); const cmts = await getAll('comments', c => c.snagId === s._id); for (const c of cmts) await removeDoc('comments', c._id); await removeDoc('snags', s._id); }
+    await removeDoc('locations', id); renderLocations();
+  } else if (type === 'snag') {
+    const photos = await getAll('photos', p => p.snagId === id); for (const p of photos) await removeDoc('photos', p._id);
+    const cmts = await getAll('comments', c => c.snagId === id); for (const c of cmts) await removeDoc('comments', c._id);
+    await removeDoc('snags', id); renderSnags();
+  }
+  showToast(type.charAt(0).toUpperCase() + type.slice(1) + ' deleted');
+}
+
+// ── Modal, Toast, Utils ─────────────────────────────────────
+function showModal(title, contentFn, afterRender) {
+  const overlay = document.getElementById('modal-overlay'); const modal = document.getElementById('modal-content');
+  contentFn().then(html => { modal.innerHTML = '<div class="modal-header"><h2>' + title + '</h2><button class="modal-close" onclick="closeModal()">✕</button></div><div class="modal-body">' + html + '</div>'; overlay.classList.add('active'); if (afterRender) setTimeout(afterRender, 50); });
+}
+function closeModal() { document.getElementById('modal-overlay').classList.remove('active'); }
+function closeModalOnOverlay(e) { if (e.target === e.currentTarget) closeModal(); }
+function showToast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2500); }
+function escHtml(str) { const d = document.createElement('div'); d.textContent = str || ''; return d.innerHTML; }
+
+// ── Init ────────────────────────────────────────────────────
+async function init() {
+  applyTheme(currentTheme);
+  applyTextSize();
+  await loadSettings(); renderProjects();
+  initViewToggles();
+  // Start local change listeners (fires on sync AND local writes)
+  startChangeListeners();
+  startPoll();
+  var cfg = getSyncConfig();
+  if (cfg.url && currentUser && currentUser.name) startSync(); else updateSyncIndicator('offline');
+  window.addEventListener('online', () => { var c = getSyncConfig(); if (c.url && currentUser && currentUser.name) startSync(); });
+  window.addEventListener('offline', () => updateSyncIndicator('offline'));
+  // Re-render when tab becomes visible again (mobile browser wake)
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) { refreshCurrentView(); var c = getSyncConfig(); if (c.url && currentUser && currentUser.name) startSync(); }
+  });
+  if ('serviceWorker' in navigator) { try { await navigator.serviceWorker.register('sw.js'); } catch(e) {} }
+}
+
+// ── Boot ────────────────────────────────────────────────────
+(function boot() {
+  applyTheme(currentTheme);
+  var stored = getStoredSession();
+  if (stored && (stored.name || stored.name === '')) {
+    currentUser = stored;
+    initLocalDBs();
+    showApp();
+    init();
+  } else {
+    showLoginScreen();
+  }
+})();
+</script>
+</body>
+</html>

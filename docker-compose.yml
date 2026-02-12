@@ -1,0 +1,58 @@
+# ============================================================
+# SnagTrack Pro — Docker Compose
+# ============================================================
+# Quick start:
+#   cp .env.example .env && nano .env   (set password)
+#   docker compose up -d
+#
+# Sync URL to enter in the app Settings:
+#   http://admin:yourpassword@your-server-ip/db
+# ============================================================
+
+services:
+
+  # ── Web App (Nginx) ────────────────────────────────────────
+  # Serves the HTML app AND proxies /db/ to CouchDB internally
+  snagtrack:
+    build: .
+    container_name: snagtrack-app
+    restart: unless-stopped
+    ports:
+      - "8082:80"
+    depends_on:
+      couchdb:
+        condition: service_healthy
+    networks:
+      - snagtrack-net
+
+  # ── CouchDB (Sync Database) ───────────────────────────────
+  # Stores synced data. NOT exposed to the internet directly.
+  # Accessed via nginx reverse proxy at /db/
+  couchdb:
+    image: couchdb:3.3
+    container_name: snagtrack-couchdb
+    restart: unless-stopped
+    # Only bind to localhost for local debugging; nginx proxies externally
+    ports:
+      - "127.0.0.1:5984:5984"
+    environment:
+      - COUCHDB_USER=${COUCHDB_USER:-admin}
+      - COUCHDB_PASSWORD=${COUCHDB_PASSWORD:-snagchamp}
+    volumes:
+      - couchdb_data:/opt/couchdb/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:5984/_up || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - snagtrack-net
+
+volumes:
+  couchdb_data:
+    driver: local
+
+networks:
+  snagtrack-net:
+    driver: bridge
